@@ -1,0 +1,21 @@
+{
+  "name": "react-sharedb",
+  "version": "0.0.1",
+  "description": "",
+  "main": "subscribe.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "hoist-non-react-statics": "^1.2.0",
+    "lodash": "4.x"
+  },
+  "peerDependencies": {
+    "racer": "*",
+    "sharedb": "*",
+    "racer-highway": "*",
+    "react": "*"
+  }
+}

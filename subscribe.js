@@ -17,7 +17,7 @@ const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
  * @returns {Function}
  * @constructor
  * @example
- * |  @Subscribe('toContentIds', 'fromContentIds', (props) => {
+ * |  @subscribe('toContentIds', 'fromContentIds', (props) => {
  * |    return {
  * |      template: ['templates', props.templateId],
  * |      sections: ['sections', { instructions: true, $sort: { createdAt: -1 } }],
@@ -26,7 +26,7 @@ const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
  * |    }
  * |  })
  * @example Extra query (counting amount of documents)
- * |  @Subscribe((props) => ({
+ * |  @subscribe((props) => ({
  * |    contentsCount: ['contents', {
  * |      $count: true,
  * |      sectionId: props.sectionId

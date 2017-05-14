@@ -23,8 +23,6 @@ if (!isServer) {
 
   if (bundle) model.unbundle(bundle)
 
-  if (!isServer) window.model = model
-
   // Time before unsubscribe really does
   model.root.unloadDelay = UNLOAD_DELAY
 }

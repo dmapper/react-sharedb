@@ -1,6 +1,20 @@
 test1:
-  name: test1
+  name: test1_
   age: 11
+  color: blue
 test2:
-  name: test2
+  name: test2_
   age: 12
+  color: blue
+test3:
+  name: test3_
+  age: 13
+  color: red
+test4:
+  name: test4_
+  age: 14
+  color: red
+test5:
+  name: test5_
+  age: 15
+  color: red

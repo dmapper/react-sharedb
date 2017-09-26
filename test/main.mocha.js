@@ -1,3 +1,4 @@
+global.DEBUG = true
 import React from 'react'
 import { expect } from 'chai'
 import { mount } from 'enzyme'
@@ -14,17 +15,21 @@ ReactWrapper.prototype.waitFor = function (selector) {
 
 let subscribe
 
-async function initSimple (subscribeParamsFn) {
+async function initSimple (...args) {
   let Simple = require('./stubs/Simple')
-  Simple = subscribe(subscribeParamsFn)(Simple)
-  let w = mount(<Simple />)
-  await w.waitFor('.Simple')
-  w.getItems = function () {
-    return getSimpleItems(this)
+  let initialProps = {}
+  if (_.isPlainObject(args[0])) {
+    initialProps = args[0]
+    args = args.slice(1)
   }
+  Simple = subscribe(...args)(Simple)
+  let w = mount(<Simple {...initialProps} />)
+  await w.waitFor('.Simple')
+  w.getItems = function () { return getSimpleItems(this) }
   Object.defineProperty(w, 'items', {
     get: function () { return this.getItems() }
   })
+  w.nextRender = function () { return nextRender(this) }
   return w
 }
 
@@ -39,6 +44,19 @@ function alias (number) {
   } else {
     return name(number)
   }
+}
+
+async function nextRender (w) {
+  let currentRender = w.html().match(/data-render-count="(\d+)"/)[1]
+  if (!currentRender) throw new Error('Component didn\'t render')
+  // console.log('>> current', currentRender)
+  // return new Promise(resolve => {
+  //   setTimeout(() => {
+  //     console.log('>>>>>', w.html())
+  //     resolve()
+  //   }, 1500)
+  // })
+  await w.waitFor(`.Simple[data-render-count="${currentRender + 1}"]`)
 }
 
 describe('Queries', () => {
@@ -63,5 +81,17 @@ describe('Queries', () => {
     let w = await initSimple(() => ({items: ['users', {color: 'red'}]}))
     expect(w.items.length).to.eql(3)
     expect(w.items).to.include.members(alias([3, 4, 5]))
+  })
+
+  it.skip('dynamic update of query param', async () => {
+    let w = await initSimple({color: 'red'}, 'color', (props) => ({
+      items: ['users', {color: props.color}]
+    }))
+    expect(w.items.length).to.eql(3)
+    expect(w.items).to.include.members(alias([3, 4, 5]))
+    w.setProps({color: 'blue'})
+    await w.nextRender()
+    expect(w.items.length).to.eql(2)
+    expect(w.items).to.include.members(alias([1, 2]))
   })
 })

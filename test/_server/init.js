@@ -8,6 +8,7 @@ import {exec} from 'child_process'
 import yaml from 'js-yaml'
 import fs from 'fs'
 import {promisifyAll} from 'bluebird'
+import initRpc from './initRpc'
 
 const MONGO_DB = process.env.MONGO_DB || 'test_react-sharedb'
 const MONGO_URL = 'mongodb://localhost:27017/' + MONGO_DB
@@ -48,6 +49,9 @@ async function populateDbWithFixtures () {
 
 async function initServer () {
   let hwHandlers = racerHighway(backend, {}, {timeout: 5000, timeoutIncrement: 8000})
+
+  // init RPC
+  initRpc(backend)
 
   let expressApp = express()
   expressApp.use(backend.modelMiddleware())

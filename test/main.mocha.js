@@ -14,6 +14,7 @@ ReactWrapper.prototype.waitFor = function (selector) {
 }
 
 let subscribe
+let serverModel
 
 async function initSimple (...args) {
   let Simple = require('./stubs/Simple')
@@ -59,20 +60,44 @@ async function nextRender (w) {
   await w.waitFor(`.Simple[data-render-count="${currentRender + 1}"]`)
 }
 
-// Workaround to init subscribe only after the server started (which is a global before)
+// Workaround to init rpc and subscribe only after the server started (which is a global before)
 before(() => {
+  serverModel = require('./_client/initRpc')
   subscribe = require('../src').subscribe
+})
+
+describe('Helpers', () => {
+
+  it('test RPC', async () => {
+    let w
+
+    await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
+    w = await initSimple(() => ({items: ['users', alias(1)]}))
+    expect(w.items).to.include(alias(1))
+
+    await serverModel.setAsync(`users.${alias(1)}.name`, 'Abrakadabra')
+    w = await initSimple(() => ({items: ['users', alias(1)]}))
+    expect(w.items).to.include('Abrakadabra')
+
+    await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
+    w = await initSimple(() => ({items: ['users', alias(1)]}))
+    expect(w.items).to.include(alias(1))
+  })
+
 })
 
 describe('Docs', () => {
 
   it('doc by id', async () => {
-    let w = await initSimple(() => ({items: ['users', alias(1)]}))
+    let w
+
+    w = await initSimple(() => ({items: ['users', alias(1)]}))
     expect(w.items.length).to.eql(1)
-    expect(w.items).to.include.members(alias([1]))
+    expect(w.items).to.include(alias(1))
+
     w = await initSimple(() => ({items: ['users', alias(4)]}))
     expect(w.items.length).to.eql(1)
-    expect(w.items).to.include.members(alias([4]))
+    expect(w.items).to.include(alias(4))
   })
 
 })

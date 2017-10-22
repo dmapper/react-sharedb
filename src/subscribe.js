@@ -2,6 +2,9 @@ import _ from 'lodash'
 import React from 'react'
 import model from './model'
 import hoistStatics from 'hoist-non-react-statics'
+import Doc from './types/Doc'
+import Query from './types/Query'
+import QueryExtra from './types/QueryExtra'
 
 // Updates to the following fields are going to be ignored (props WON'T be updated)
 const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
@@ -55,12 +58,8 @@ export default function subscribe () {
 
       componentWillUnmount () {
         this.unmounted = true
-        for (let key in this.listeners) {
-          let {ee, eventName, fn} = this.listeners[key]
-          ee.removeListener(eventName, fn)
-        }
-        delete this.listeners
-        model.unsubscribe(this.subscriptionsArray || [])
+        for (let item of this.items) item.destroy()
+        delete this.items
       }
 
       removeListener (key) {
@@ -83,6 +82,7 @@ export default function subscribe () {
       // Right now it only supports changes to the existing queries.
       // TODO: Implement support for removing/adding queries
       componentWillReceiveProps (nextProps) {
+        return false
         let updateQueries = false
         reactiveProps.forEach((reactiveProp) => {
           if (!_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])) {
@@ -129,47 +129,26 @@ export default function subscribe () {
         return queryParams.$count || queryParams.$aggregate
       }
 
-      subscribe () {
-        let subscriptions = []
-        let localModels = []
+      async subscribe () {
+        this.items = []
         for (let key in this.subscriptions) {
-          if (typeof this.subscriptions[key] === 'string') {
-            let globalPath = this.subscriptions[key]
-            localModels.push({key, globalPath})
-          } else {
-            let [collection, queryParams] = this.subscriptions[key]
-            if (typeof queryParams === 'string' || !queryParams) {
-              subscriptions.push({
-                key: key,
-                doc: model.scope(`${collection}.${queryParams}`)
-              })
-            } else {
-              subscriptions.push({
-                key: key,
-                query: model.query(collection, queryParams),
-                isExtra: this._isExtraQuery(queryParams)
-              })
-            }
-          }
+          let [, params] = this.subscriptions[key]
+          let constructor = typeof params === 'string' || !params
+            ? Doc
+            : this._isExtraQuery(params)
+            ? QueryExtra
+            : Query
+          this.items.push(new constructor(key, this.subscriptions[key]))
         }
-        this.subscriptionsArray = subscriptions.map(i => i.query || i.doc)
-        model.subscribe(this.subscriptionsArray, (err) => {
-          if (err) return console.error(err)
-          if (this.unmounted) return model.unsubscribe(this.subscriptionsArray)
-          subscriptions.forEach((subscription) => {
-            if (subscription.doc) {
-              this.initDocData(subscription.key, subscription.doc)
-            } else if (subscription.query) {
-              this.initQueryData(subscription.key, subscription.query,
-                  subscription.isExtra)
-            }
-          })
-          localModels.forEach(({key, globalPath}) => {
-            this.initLocalData(key, globalPath)
-          })
-          this.loaded = true
-          this.forceUpdate()
-        })
+        // Init all items
+        await Promise.all(this.items.map(i => i.init()))
+        if (this.unmounted) return
+        // Update all data
+        let data = {}
+        this.items.reduce((data, item) => _.merge(data, item.getData()), data)
+        this.setState(data)
+        this.loaded = true
+        this.forceUpdate()
       }
 
       initLocalData (key, globalPath) {

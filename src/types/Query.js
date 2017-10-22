@@ -21,7 +21,12 @@ export default class Query extends Base {
   async _subscribe () {
     let {collection, query} = this
     this.subscription = model.query(collection, query)
-    await new Promise(cb => model.subscribe(this.subscription, cb))()
+    await new Promise((resolve, reject) => {
+      model.subscribe(this.subscription, err => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
   }
 
   _unsubscribe () {
@@ -42,7 +47,7 @@ export default class Query extends Base {
     let docIds = subscription.getIds()
     for (let docId of docIds) {
       let docListener = new DocListener(collection, docId)
-      this.docListeners.push(docListener)
+      this.docListeners[docId] = docListener
       docListener.on('update', () => this.emit('update'))
       docListener.init()
     }
@@ -53,7 +58,7 @@ export default class Query extends Base {
       let ids = getShareResultsIds(shareDocs)
       ids.forEach(docId => {
         let docListener = new DocListener(collection, docId)
-        this.docListeners.push(docListener)
+        this.docListeners[docId] = docListener
         docListener.on('update', () => this.emit('update'))
         docListener.init()
       })

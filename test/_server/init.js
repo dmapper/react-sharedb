@@ -12,6 +12,7 @@ import {promisifyAll} from 'bluebird'
 const MONGO_DB = process.env.MONGO_DB || 'test_react-sharedb'
 const MONGO_URL = 'mongodb://localhost:27017/' + MONGO_DB
 const PORT = process.env.PORT || 3000
+const FIXTURES_PATH = __dirname + '/../fixtures'
 
 let mongo, backend
 
@@ -31,12 +32,17 @@ async function initDb () {
 
 async function populateDbWithFixtures () {
   let model = backend.createModel()
-  let users = yaml.safeLoad(fs.readFileSync(__dirname + '/../fixtures/users.yaml'))
-  let promises = []
-  for (let id in users) {
-    promises.push(model.addAsync('users', {id, ...users[id]}))
+  let files = fs.readdirSync(FIXTURES_PATH)
+  for (let file of files) {
+    if (!/\.ya?ml$/.test(file)) continue
+    let collection = file.replace(/\.ya?ml$/, '')
+    let items = yaml.safeLoad(fs.readFileSync(`${FIXTURES_PATH}/${file}`))
+    let promises = []
+    for (let id in items) {
+      promises.push(model.addAsync(collection, {id, ...items[id]}))
+    }
+    await Promise.all(promises)
   }
-  await Promise.all(promises)
   model.destroy()
 }
 

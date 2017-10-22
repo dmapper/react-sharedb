@@ -21,7 +21,12 @@ export default class Doc extends Base {
   async _subscribe () {
     let {collection, docId} = this
     this.subscription = model.scope(`${collection}.${docId}`)
-    await new Promise(cb => model.subscribe(this.subscription, cb))()
+    await new Promise((resolve, reject) => {
+      model.subscribe(this.subscription, err => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
   }
 
   _unsubscribe () {

@@ -59,11 +59,25 @@ async function nextRender (w) {
   await w.waitFor(`.Simple[data-render-count="${currentRender + 1}"]`)
 }
 
-describe('Queries', () => {
-  // Workaround to init subscribe only after the server started (which is a global before)
-  before(() => {
-    subscribe = require('../src').subscribe
+// Workaround to init subscribe only after the server started (which is a global before)
+before(() => {
+  subscribe = require('../src').subscribe
+})
+
+describe('Docs', () => {
+
+  it('doc by id', async () => {
+    let w = await initSimple(() => ({items: ['users', alias(1)]}))
+    expect(w.items.length).to.eql(1)
+    expect(w.items).to.include.members(alias([1]))
+    w = await initSimple(() => ({items: ['users', alias(4)]}))
+    expect(w.items.length).to.eql(1)
+    expect(w.items).to.include.members(alias([4]))
   })
+
+})
+
+describe('Queries', () => {
 
   it('all collection', async () => {
     let w = await initSimple(() => ({items: ['users', {}]}))

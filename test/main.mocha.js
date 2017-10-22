@@ -15,6 +15,7 @@ ReactWrapper.prototype.waitFor = function (selector) {
 
 let subscribe
 let serverModel
+let w
 
 async function initSimple (...args) {
   let Simple = require('./stubs/Simple')
@@ -63,7 +64,6 @@ before(() => {
   subscribe = require('../src').subscribe
 })
 
-let w
 // Unmount component after each test
 afterEach(() => {
   if (!w) return

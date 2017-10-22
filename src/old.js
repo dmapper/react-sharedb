@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import React from 'react'
-import model from './model'
+import model from '../model'
 import hoistStatics from 'hoist-non-react-statics'
 
 // Updates to the following fields are going to be ignored (props WON'T be updated)

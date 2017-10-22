@@ -11,6 +11,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "eventemitter3": "^2.0.3",
     "hoist-non-react-statics": "^1.2.0",
     "lodash": "4.x"
   },

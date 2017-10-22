@@ -24,8 +24,7 @@ export default class Simple extends React.Component {
     if (typeof DEBUG !== 'undefined') console.log(`RENDER ${renderCount}:`, items.map(i => i.name).join(','))
     return (
       <div
-        className='Simple'
-        data-render-count={renderCount}
+        className={`Simple RENDER-${renderCount}`}
       >
         { items.map(i => i.name).join(',') }
       </div>

@@ -47,17 +47,14 @@ function alias (number) {
   }
 }
 
-async function nextRender (w) {
-  let currentRender = w.html().match(/data-render-count="(\d+)"/)[1]
+async function nextRender (w, count = 1) {
+  let currentRender = w.html().match(/RENDER-(\d+)/)[1]
   if (!currentRender) throw new Error('Component didn\'t render')
+  currentRender = ~~currentRender
   // console.log('>> current', currentRender)
-  // return new Promise(resolve => {
-  //   setTimeout(() => {
-  //     console.log('>>>>>', w.html())
-  //     resolve()
-  //   }, 1500)
-  // })
-  await w.waitFor(`.Simple[data-render-count="${currentRender + 1}"]`)
+  let selector = `.RENDER-${currentRender + count}`
+  console.log('wait for:', selector)
+  await w.waitFor(selector)
 }
 
 // Workaround to init rpc and subscribe only after the server started (which is a global before)
@@ -66,18 +63,25 @@ before(() => {
   subscribe = require('../src').subscribe
 })
 
+let w
+// Unmount component after each test
+afterEach(() => {
+  if (!w) return
+  w.unmount()
+})
+
 describe('Helpers', () => {
 
   it('test RPC', async () => {
-    let w
-
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
     w = await initSimple(() => ({items: ['users', alias(1)]}))
     expect(w.items).to.include(alias(1))
+    w.unmount()
 
     await serverModel.setAsync(`users.${alias(1)}.name`, 'Abrakadabra')
     w = await initSimple(() => ({items: ['users', alias(1)]}))
     expect(w.items).to.include('Abrakadabra')
+    w.unmount()
 
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
     w = await initSimple(() => ({items: ['users', alias(1)]}))
@@ -89,15 +93,23 @@ describe('Helpers', () => {
 describe('Docs', () => {
 
   it('doc by id', async () => {
-    let w
+    w = await initSimple(() => ({items: ['users', alias(3)]}))
+    expect(w.items.length).to.eql(1)
+    expect(w.items).to.include(alias(3))
+  })
 
+  it('dynamic data update', async () => {
     w = await initSimple(() => ({items: ['users', alias(1)]}))
-    expect(w.items.length).to.eql(1)
-    expect(w.items).to.include(alias(1))
-
-    w = await initSimple(() => ({items: ['users', alias(4)]}))
-    expect(w.items.length).to.eql(1)
-    expect(w.items).to.include(alias(4))
+    expect(w.items).to.have.lengthOf(1).and.include(alias(1))
+    let updateAndCheckName = async (newName) => {
+      serverModel.set(`users.${alias(1)}.name`, newName)
+      await w.nextRender()
+      expect(w.items).to.have.lengthOf(1).and.include(newName)
+    }
+    for (let i in _.range(50)) {
+      await updateAndCheckName(`TestUpdate${i}_`)
+    }
+    await updateAndCheckName(alias(1))
   })
 
 })

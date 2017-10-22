@@ -58,7 +58,7 @@ export default function subscribe () {
 
       componentWillUnmount () {
         this.unmounted = true
-        for (let item of this.items) item.destroy()
+        for (let key in this.items) this.items[key].destroy()
         delete this.items
       }
 
@@ -130,7 +130,7 @@ export default function subscribe () {
       }
 
       async subscribe () {
-        this.items = []
+        this.items = {}
         for (let key in this.subscriptions) {
           let [, params] = this.subscriptions[key]
           let constructor = typeof params === 'string' || !params
@@ -138,17 +138,31 @@ export default function subscribe () {
             : this._isExtraQuery(params)
             ? QueryExtra
             : Query
-          this.items.push(new constructor(key, this.subscriptions[key]))
+          this.items[key] = new constructor(key, this.subscriptions[key])
         }
         // Init all items
-        await Promise.all(this.items.map(i => i.init()))
+        await Promise.all(_.map(this.items, i => i.init()))
         if (this.unmounted) return
         // Update all data
         let data = {}
-        this.items.reduce((data, item) => _.merge(data, item.getData()), data)
+        _.reduce(this.items, (data, item) => _.merge(data, item.getData()), data)
         this.setState(data)
+        // Start listening for updates
+        for (let key in this.items) {
+          this.listenForUpdates(key)
+        }
         this.loaded = true
         this.forceUpdate()
+      }
+
+      listenForUpdates (key) {
+        this.items[key].on('update', this.updateItemData.bind(this, key))
+      }
+
+      updateItemData (key) {
+        let data = this.items[key].getData()
+        let equal = _.every(data, (val, key) => _.isEqual(val, this.state[key]))
+        if (!equal) this.setState(_.cloneDeep(data))
       }
 
       initLocalData (key, globalPath) {

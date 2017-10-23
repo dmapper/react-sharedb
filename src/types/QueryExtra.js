@@ -1,9 +1,8 @@
 import Query from './Query'
 
 export default class QueryExtra extends Query {
-
   _listenForUpdates () {
-    let {subscription} = this
+    let { subscription } = this
     this.listeners = []
 
     // [update of the extra ($count, $aggregate)]
@@ -26,9 +25,8 @@ export default class QueryExtra extends Query {
   }
 
   getData () {
-    let {subscription, key} = this
+    let { subscription, key } = this
     let value = subscription.getExtra()
-    return {[key]: value}
+    return { [key]: value }
   }
-
 }

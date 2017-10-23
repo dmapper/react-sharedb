@@ -1,7 +1,6 @@
 import EventEmitter from 'eventemitter3'
 
 export default class Base extends EventEmitter {
-
   constructor (key, params) {
     super()
     this.key = key
@@ -10,9 +9,7 @@ export default class Base extends EventEmitter {
     this.params = params
   }
 
-  async init () {
-
-  }
+  async init () {}
 
   getData () {
     return undefined
@@ -22,7 +19,5 @@ export default class Base extends EventEmitter {
     return false
   }
 
-  destroy () {
-  }
-
+  destroy () {}
 }

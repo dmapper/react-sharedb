@@ -15,6 +15,7 @@ ReactWrapper.prototype.waitFor = function (selector) {
 
 let subscribe
 let serverModel
+let w
 
 async function initSimple (...args) {
   let Simple = require('./stubs/Simple')
@@ -26,16 +27,25 @@ async function initSimple (...args) {
   Simple = subscribe(...args)(Simple)
   let w = mount(<Simple {...initialProps} />)
   await w.waitFor('.Simple')
-  w.getItems = function () { return getSimpleItems(this) }
+  w.getItems = function () {
+    return getSimpleItems(this)
+  }
   Object.defineProperty(w, 'items', {
-    get: function () { return this.getItems() }
+    get: function () {
+      return this.getItems()
+    }
   })
-  w.nextRender = function () { return nextRender(this) }
+  w.nextRender = function () {
+    return nextRender(this)
+  }
   return w
 }
 
 function getSimpleItems (w) {
-  return w.find('.Simple').text().split(',')
+  return w
+    .find('.Simple')
+    .text()
+    .split(',')
 }
 
 function alias (number) {
@@ -49,7 +59,7 @@ function alias (number) {
 
 async function nextRender (w, count = 1) {
   let currentRender = w.html().match(/RENDER-(\d+)/)[1]
-  if (!currentRender) throw new Error('Component didn\'t render')
+  if (!currentRender) throw new Error("Component didn't render")
   currentRender = ~~currentRender
   // console.log('>> current', currentRender)
   let selector = `.RENDER-${currentRender + count}`
@@ -63,7 +73,6 @@ before(() => {
   subscribe = require('../src').subscribe
 })
 
-let w
 // Unmount component after each test
 afterEach(() => {
   if (!w) return
@@ -71,76 +80,75 @@ afterEach(() => {
 })
 
 describe('Helpers', () => {
-
   it('test RPC', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
-    w = await initSimple(() => ({items: ['users', alias(1)]}))
+    w = await initSimple(() => ({ items: ['users', alias(1)] }))
     expect(w.items).to.include(alias(1))
     w.unmount()
 
     await serverModel.setAsync(`users.${alias(1)}.name`, 'Abrakadabra')
-    w = await initSimple(() => ({items: ['users', alias(1)]}))
+    w = await initSimple(() => ({ items: ['users', alias(1)] }))
     expect(w.items).to.include('Abrakadabra')
     w.unmount()
 
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
-    w = await initSimple(() => ({items: ['users', alias(1)]}))
+    w = await initSimple(() => ({ items: ['users', alias(1)] }))
     expect(w.items).to.include(alias(1))
   })
-
 })
 
 describe('Docs', () => {
-
   it('doc by id', async () => {
-    w = await initSimple(() => ({items: ['users', alias(3)]}))
+    w = await initSimple(() => ({ items: ['users', alias(3)] }))
     expect(w.items.length).to.eql(1)
     expect(w.items).to.include(alias(3))
   })
 
   it('dynamic data update', async () => {
-    w = await initSimple(() => ({items: ['users', alias(1)]}))
-    expect(w.items).to.have.lengthOf(1).and.include(alias(1))
-    let updateAndCheckName = async (newName) => {
+    w = await initSimple(() => ({ items: ['users', alias(1)] }))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+    let updateAndCheckName = async newName => {
       serverModel.set(`users.${alias(1)}.name`, newName)
       await w.nextRender()
-      expect(w.items).to.have.lengthOf(1).and.include(newName)
+      expect(w.items)
+        .to.have.lengthOf(1)
+        .and.include(newName)
     }
     for (let i in _.range(50)) {
       await updateAndCheckName(`TestUpdate${i}_`)
     }
     await updateAndCheckName(alias(1))
   })
-
 })
 
 describe('Queries', () => {
-
   it('all collection', async () => {
-    let w = await initSimple(() => ({items: ['users', {}]}))
+    let w = await initSimple(() => ({ items: ['users', {}] }))
     expect(w.items.length).to.eql(5)
     expect(w.items).to.include.members(alias([1, 2, 3, 4, 5]))
   })
 
   it('parametrized 1', async () => {
-    let w = await initSimple(() => ({items: ['users', {color: 'blue'}]}))
+    let w = await initSimple(() => ({ items: ['users', { color: 'blue' }] }))
     expect(w.items.length).to.eql(2)
     expect(w.items).to.include.members(alias([1, 2]))
   })
 
   it('parametrized 2', async () => {
-    let w = await initSimple(() => ({items: ['users', {color: 'red'}]}))
+    let w = await initSimple(() => ({ items: ['users', { color: 'red' }] }))
     expect(w.items.length).to.eql(3)
     expect(w.items).to.include.members(alias([3, 4, 5]))
   })
 
   it.skip('dynamic update of query param', async () => {
-    let w = await initSimple({color: 'red'}, 'color', (props) => ({
-      items: ['users', {color: props.color}]
+    let w = await initSimple({ color: 'red' }, 'color', props => ({
+      items: ['users', { color: props.color }]
     }))
     expect(w.items.length).to.eql(3)
     expect(w.items).to.include.members(alias([3, 4, 5]))
-    w.setProps({color: 'blue'})
+    w.setProps({ color: 'blue' })
     await w.nextRender()
     expect(w.items.length).to.eql(2)
     expect(w.items).to.include.members(alias([1, 2]))

@@ -3,7 +3,6 @@ import Base from './Base'
 import DocListener from '../helpers/DocListener'
 
 export default class Query extends Base {
-
   constructor (...args) {
     super(...args)
     let [collection, query] = this.params
@@ -19,7 +18,7 @@ export default class Query extends Base {
   }
 
   async _subscribe () {
-    let {collection, query} = this
+    let { collection, query } = this
     this.subscription = model.query(collection, query)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
@@ -36,7 +35,7 @@ export default class Query extends Base {
   }
 
   _listenForUpdates () {
-    let {collection, subscription} = this
+    let { collection, subscription } = this
     this.listens = true
     this.listeners = []
     this.docListeners = {}
@@ -53,7 +52,7 @@ export default class Query extends Base {
     }
 
     // [insert]
-    let insertFn = (shareDocs) => {
+    let insertFn = shareDocs => {
       // Start listening to changes to the new docs
       let ids = getShareResultsIds(shareDocs)
       ids.forEach(docId => {
@@ -72,7 +71,7 @@ export default class Query extends Base {
     })
 
     // [remove]
-    let removeFn = (shareDocs) => {
+    let removeFn = shareDocs => {
       // Stop listening the removed docs
       let ids = getShareResultsIds(shareDocs)
       ids.forEach(docId => {
@@ -115,7 +114,7 @@ export default class Query extends Base {
   }
 
   getData () {
-    let {subscription, key} = this
+    let { subscription, key } = this
     let ids = []
     let value = subscription.get().filter(doc => {
       if (!doc) return
@@ -140,7 +139,6 @@ export default class Query extends Base {
     delete this.params
     delete this.data
   }
-
 }
 
 export function getShareResultsIds (results) {

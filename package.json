@@ -5,8 +5,16 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "mocha ./test/**/*.mocha.js --bail --reporter spec --require babel-polyfill --compilers js:babel-register --require ./test/_client",
+    "format": "prettier-standard {src,test}/**/*.{js,jsx}",
     "prepublish": "babel --optional runtime src --out-dir lib",
-    "postpublish": "rm -rf lib"
+    "postpublish": "rm -rf lib",
+    "precommit": "lint-staged"
+  },
+  "lint-staged": {
+    "{src,test}/**/*.{js,jsx}": [
+      "prettier-standard",
+      "git add"
+    ]
   },
   "author": "",
   "license": "MIT",
@@ -18,7 +26,6 @@
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.0",
-    "babel-eslint": "^5.0.0-beta6",
     "babel-plugin-add-module-exports": "^0.1.2",
     "babel-plugin-transform-decorators-legacy": "^1.3.4",
     "babel-plugin-transform-runtime": "^6.3.13",
@@ -33,9 +40,12 @@
     "enzyme": "^2.9.1",
     "enzyme-wait": "^1.0.9",
     "express": "^4.16.2",
+    "husky": "^0.14.3",
     "js-yaml": "^3.10.0",
     "jsdom": "^11.3.0",
+    "lint-staged": "^4.3.0",
     "mocha": "^3.5.3",
+    "prettier-standard": "^7.0.3",
     "racer": "^0.9.3",
     "racer-highway": "^8.0.0",
     "racer-rpc": "dmapper/racer-rpc#v0.1.2",

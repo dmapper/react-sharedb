@@ -10,7 +10,7 @@ export default function (backend) {
   // Warning: this model is never destroyed.
   // We'll subscribe to everything for the ease of use, so we want the updates
   // to be flowing through subscribes
-  let model = backend.createModel({fetchOnly: false})
+  let model = backend.createModel({ fetchOnly: false })
   let collections = getAllCollectionNames()
   model.subscribe(collections.map(name => model.query(name, {})))
   backend.rpc.on('model', function (...args) {

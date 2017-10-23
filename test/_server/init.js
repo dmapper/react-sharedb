@@ -1,13 +1,13 @@
 import 'babel-register'
 import http from 'http'
 import express from 'express'
-import racer, {Model} from 'racer'
+import racer, { Model } from 'racer'
 import shareDbMongo from 'sharedb-mongo'
 import racerHighway from 'racer-highway'
-import {exec} from 'child_process'
+import { exec } from 'child_process'
 import yaml from 'js-yaml'
 import fs from 'fs'
-import {promisifyAll} from 'bluebird'
+import { promisifyAll } from 'bluebird'
 import initRpc from './initRpc'
 
 const MONGO_DB = process.env.MONGO_DB || 'test_react-sharedb'
@@ -40,7 +40,7 @@ async function populateDbWithFixtures () {
     let items = yaml.safeLoad(fs.readFileSync(`${FIXTURES_PATH}/${file}`))
     let promises = []
     for (let id in items) {
-      promises.push(model.addAsync(collection, {id, ...items[id]}))
+      promises.push(model.addAsync(collection, { id, ...items[id] }))
     }
     await Promise.all(promises)
   }
@@ -48,7 +48,11 @@ async function populateDbWithFixtures () {
 }
 
 async function initServer () {
-  let hwHandlers = racerHighway(backend, {}, {timeout: 5000, timeoutIncrement: 8000})
+  let hwHandlers = racerHighway(
+    backend,
+    {},
+    { timeout: 5000, timeoutIncrement: 8000 }
+  )
 
   // init RPC
   initRpc(backend)
@@ -59,17 +63,17 @@ async function initServer () {
 
   let server = http.createServer(expressApp)
   server.on('upgrade', hwHandlers.upgrade)
-  server.listen(PORT, (err) => {
+  server.listen(PORT, err => {
     if (err) {
-      process.send({type: 'done', err})
+      process.send({ type: 'done', err })
       return process.exit(1)
     }
     console.log('> started server')
-    process.send({type: 'done'})
+    process.send({ type: 'done' })
   })
 }
 
-(async function () {
+;(async function () {
   await initDb()
   await populateDbWithFixtures()
   await initServer()

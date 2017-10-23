@@ -3,7 +3,6 @@ import Base from './Base'
 import DocListener from '../helpers/DocListener'
 
 export default class Doc extends Base {
-
   constructor (...args) {
     super(...args)
     let [collection, docId] = this.params
@@ -19,7 +18,7 @@ export default class Doc extends Base {
   }
 
   async _subscribe () {
-    let {collection, docId} = this
+    let { collection, docId } = this
     this.subscription = model.scope(`${collection}.${docId}`)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
@@ -36,7 +35,7 @@ export default class Doc extends Base {
   }
 
   _listenForUpdates () {
-    let {collection, docId} = this
+    let { collection, docId } = this
     this.docListener = new DocListener(collection, docId)
     this.docListener.on('update', () => this.emit('update'))
     this.docListener.init()
@@ -49,7 +48,7 @@ export default class Doc extends Base {
   }
 
   getData () {
-    let {collection, docId, key} = this
+    let { collection, docId, key } = this
     let value
     if (collection === 'texts') {
       value = model.connection.get('texts', docId)
@@ -57,7 +56,7 @@ export default class Doc extends Base {
     } else {
       value = model.get(`${collection}.${docId}`)
     }
-    return {[key]: value}
+    return { [key]: value }
   }
 
   shouldForceUpdate () {
@@ -75,5 +74,4 @@ export default class Doc extends Base {
     delete this.params
     delete this.data
   }
-
 }

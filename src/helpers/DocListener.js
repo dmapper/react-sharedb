@@ -5,7 +5,6 @@ import model from '../model'
 const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
 
 export default class DocListener extends EventEmitter {
-
   constructor (collection, docId) {
     super()
     this.collection = collection
@@ -13,7 +12,7 @@ export default class DocListener extends EventEmitter {
   }
 
   init () {
-    let {collection, docId} = this
+    let { collection, docId } = this
     let shareDoc = model.connection.get(collection, docId)
     if (!shareDoc) return console.error('Doc not found:', collection, docId)
     this.listeners = []
@@ -22,9 +21,13 @@ export default class DocListener extends EventEmitter {
       let handler = fn
       // Filter `op` ops to ignore changes to the IGNORE_FIELDS
       if (eventName === 'op') {
-        handler = (op) => {
-          if (_.isArray(op) && op[0] && op[0].p &&
-              IGNORE_FIELDS.indexOf(op[0].p[0]) !== -1) {
+        handler = op => {
+          if (
+            _.isArray(op) &&
+            op[0] &&
+            op[0].p &&
+            IGNORE_FIELDS.indexOf(op[0].p[0]) !== -1
+          ) {
             return
           }
           fn()
@@ -47,5 +50,4 @@ export default class DocListener extends EventEmitter {
     }
     delete this.listeners
   }
-
 }

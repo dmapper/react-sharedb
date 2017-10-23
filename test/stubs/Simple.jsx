@@ -20,7 +20,9 @@ export default class Simple extends React.Component {
     // Handle situation when subscribing to one doc instead of query
     if (!_.isArray(items)) items = [items]
     let { renderCount } = this.state
-    if (typeof DEBUG !== 'undefined') { console.log(`RENDER ${renderCount}:`, items.map(i => i.name).join(',')) }
+    if (typeof DEBUG !== 'undefined') {
+      console.log(`RENDER ${renderCount}:`, items.map(i => i.name).join(','))
+    }
     return (
       <div className={`Simple RENDER-${renderCount}`}>
         {items.map(i => i.name).join(',')}

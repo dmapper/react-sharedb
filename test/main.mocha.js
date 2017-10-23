@@ -100,8 +100,9 @@ describe('Helpers', () => {
 describe('Docs', () => {
   it('doc by id', async () => {
     w = await initSimple(() => ({ items: ['users', alias(3)] }))
-    expect(w.items.length).to.eql(1)
-    expect(w.items).to.include(alias(3))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(3))
   })
 
   it('dynamic data update', async () => {
@@ -126,31 +127,36 @@ describe('Docs', () => {
 describe('Queries', () => {
   it('all collection', async () => {
     let w = await initSimple(() => ({ items: ['users', {}] }))
-    expect(w.items.length).to.eql(5)
-    expect(w.items).to.include.members(alias([1, 2, 3, 4, 5]))
+    expect(w.items)
+      .to.have.lengthOf(5)
+      .and.include.members(alias([1, 2, 3, 4, 5]))
   })
 
   it('parametrized 1', async () => {
     let w = await initSimple(() => ({ items: ['users', { color: 'blue' }] }))
-    expect(w.items.length).to.eql(2)
-    expect(w.items).to.include.members(alias([1, 2]))
+    expect(w.items)
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
   })
 
   it('parametrized 2', async () => {
     let w = await initSimple(() => ({ items: ['users', { color: 'red' }] }))
-    expect(w.items.length).to.eql(3)
-    expect(w.items).to.include.members(alias([3, 4, 5]))
+    expect(w.items)
+      .to.have.lengthOf(3)
+      .and.include.members(alias([3, 4, 5]))
   })
 
   it.skip('dynamic update of query param', async () => {
     let w = await initSimple({ color: 'red' }, 'color', props => ({
       items: ['users', { color: props.color }]
     }))
-    expect(w.items.length).to.eql(3)
-    expect(w.items).to.include.members(alias([3, 4, 5]))
+    expect(w.items)
+      .to.have.lengthOf(3)
+      .and.include.members(alias([3, 4, 5]))
     w.setProps({ color: 'blue' })
     await w.nextRender()
-    expect(w.items.length).to.eql(2)
-    expect(w.items).to.include.members(alias([1, 2]))
+    expect(w.items)
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
   })
 })

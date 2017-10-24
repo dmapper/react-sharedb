@@ -35,17 +35,16 @@ async function initSimple (...args) {
       return this.getItems()
     }
   })
-  w.nextRender = function () {
-    return nextRender(this)
+  w.nextRender = function (count = 1) {
+    return nextRender(this, count)
   }
   return w
 }
 
 function getSimpleItems (w) {
-  return w
-    .find('.Simple')
-    .text()
-    .split(',')
+  let text = w.find('.Simple').text()
+  if (!text) return []
+  return text.split(',')
 }
 
 function alias (number) {
@@ -126,28 +125,62 @@ describe('Docs', () => {
 
 describe('Queries', () => {
   it('all collection', async () => {
-    let w = await initSimple(() => ({ items: ['users', {}] }))
+    w = await initSimple(() => ({ items: ['users', {}] }))
     expect(w.items)
       .to.have.lengthOf(5)
       .and.include.members(alias([1, 2, 3, 4, 5]))
   })
 
   it('parametrized 1', async () => {
-    let w = await initSimple(() => ({ items: ['users', { color: 'blue' }] }))
+    w = await initSimple(() => ({ items: ['users', { color: 'blue' }] }))
     expect(w.items)
       .to.have.lengthOf(2)
       .and.include.members(alias([1, 2]))
   })
 
   it('parametrized 2', async () => {
-    let w = await initSimple(() => ({ items: ['users', { color: 'red' }] }))
+    w = await initSimple(() => ({ items: ['users', { color: 'red' }] }))
     expect(w.items)
       .to.have.lengthOf(3)
       .and.include.members(alias([3, 4, 5]))
   })
 
+  it('dynamic data update', async () => {
+    w = await initSimple(() => ({ items: ['users', { color: 'red' }] }))
+    expect(w.items)
+      .to.have.lengthOf(3)
+      .and.include.members(alias([3, 4, 5]))
+    let updateAndCheckItems = async (index, color, indexes, decrease) => {
+      serverModel.set(`users.${alias(index)}.color`, color)
+      // Wait for 2 renders when the item is going to disappear from
+      // the query results.
+      // NOTE: 2 renderings are happening because when
+      // the data is changed in the item which is already loaded to
+      // the client-side model, it is not getting removed from
+      // the query result immediately since the doc ids are updated
+      // by query only from the server-side.
+      // So for some time the document which doesn't match the query
+      // anymore, will still be present in the array.
+      let renders = decrease ? 2 : 1
+      await w.nextRender(renders)
+      expect(w.items)
+        .to.have.lengthOf(indexes.length)
+        .and.include.members(alias(indexes))
+    }
+    await updateAndCheckItems(3, 'blue', [4, 5], true)
+    await updateAndCheckItems(4, 'blue', [5], true)
+    await updateAndCheckItems(1, 'red', [1, 5])
+    await updateAndCheckItems(3, 'red', [1, 3, 5])
+    await updateAndCheckItems(5, 'blue', [1, 3], true)
+    await updateAndCheckItems(1, 'blue', [3], true)
+    await updateAndCheckItems(3, 'blue', [], true)
+    await updateAndCheckItems(5, 'red', [5])
+    await updateAndCheckItems(3, 'red', [3, 5])
+    await updateAndCheckItems(4, 'red', [3, 4, 5])
+  })
+
   it.skip('dynamic update of query param', async () => {
-    let w = await initSimple({ color: 'red' }, 'color', props => ({
+    w = await initSimple({ color: 'red' }, 'color', props => ({
       items: ['users', { color: props.color }]
     }))
     expect(w.items)

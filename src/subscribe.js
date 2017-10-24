@@ -39,15 +39,20 @@ const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
 export default function subscribe () {
   let getSubscriptions = arguments[arguments.length - 1]
   if (typeof getSubscriptions !== 'function') {
-    throw new Error('[@subscribe] last argument (getSubscriptions) must be a function.')
+    throw new Error(
+      '[@subscribe] last argument (getSubscriptions) must be a function.'
+    )
   }
-  let reactiveProps = Array.prototype.slice.call(arguments, 0, arguments.length - 1)
+  let reactiveProps = Array.prototype.slice.call(
+    arguments,
+    0,
+    arguments.length - 1
+  )
   if (reactiveProps.some(i => typeof i !== 'string')) {
     throw new Error('[@subscribe] reactiveProps must be strings.')
   }
   return function decorateTarget (DecoratedComponent) {
     class SubscriptionsContainer extends React.Component {
-
       constructor (props) {
         super(props)
         this.subscriptions = this.getCurrentSubscriptions(props)
@@ -64,7 +69,7 @@ export default function subscribe () {
 
       removeListener (key) {
         if (!this.listeners[key]) return
-        let {ee, eventName, fn} = this.listeners[key]
+        let { ee, eventName, fn } = this.listeners[key]
         ee.removeListener(eventName, fn)
         delete this.listeners[key]
       }
@@ -75,7 +80,7 @@ export default function subscribe () {
       }
 
       getCurrentSubscriptions (props) {
-        return getSubscriptions && getSubscriptions(props) || {}
+        return (getSubscriptions && getSubscriptions(props)) || {}
       }
 
       // Update queries when reactiveProps change.
@@ -84,7 +89,7 @@ export default function subscribe () {
       componentWillReceiveProps (nextProps) {
         return false
         let updateQueries = false
-        reactiveProps.forEach((reactiveProp) => {
+        reactiveProps.forEach(reactiveProp => {
           if (!_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])) {
             updateQueries = true
           }
@@ -103,19 +108,19 @@ export default function subscribe () {
                 this.initLocalData(key, globalPath)
               }
             } else {
-              let [ collection, queryParams ] = this.subscriptions[ key ]
+              let [collection, queryParams] = this.subscriptions[key]
               // Update queries
               if (typeof queryParams === 'object') {
-                let [ , prevQueryParams ] = prevSubscriptions[ key ]
+                let [, prevQueryParams] = prevSubscriptions[key]
                 if (!_.isEqual(queryParams, prevQueryParams)) {
                   this.updateQuery(key, collection, queryParams)
                 }
-              // TODO: Implement update docs
-              // For now, if you want a reactive doc subscription -
-              // create a query { _id: props.myId }
+                // TODO: Implement update docs
+                // For now, if you want a reactive doc subscription -
+                // create a query { _id: props.myId }
               } else {
                 // prevQueryParams here is a string
-                let [ , prevQueryParams ] = prevSubscriptions[ key ]
+                let [, prevQueryParams] = prevSubscriptions[key]
                 if (!_.isEqual(queryParams, prevQueryParams)) {
                   this.updateDoc(key, collection, queryParams)
                 }
@@ -133,11 +138,10 @@ export default function subscribe () {
         this.items = {}
         for (let key in this.subscriptions) {
           let [, params] = this.subscriptions[key]
-          let constructor = typeof params === 'string' || !params
-            ? Doc
-            : this._isExtraQuery(params)
-            ? QueryExtra
-            : Query
+          let constructor =
+            typeof params === 'string' || !params
+              ? Doc
+              : this._isExtraQuery(params) ? QueryExtra : Query
           this.items[key] = new constructor(key, this.subscriptions[key])
         }
         // Init all items
@@ -145,7 +149,11 @@ export default function subscribe () {
         if (this.unmounted) return
         // Update all data
         let data = {}
-        _.reduce(this.items, (data, item) => _.merge(data, item.getData()), data)
+        _.reduce(
+          this.items,
+          (data, item) => _.merge(data, item.getData()),
+          data
+        )
         this.setState(data)
         // Start listening for updates
         for (let key in this.items) {
@@ -162,6 +170,8 @@ export default function subscribe () {
       updateItemData (key) {
         let data = this.items[key].getData()
         let equal = _.every(data, (val, key) => _.isEqual(val, this.state[key]))
+        // TODO: remove log
+        // console.log('--UPDATE', this.state, data)
         if (!equal) this.setState(_.cloneDeep(data))
       }
 
@@ -190,10 +200,14 @@ export default function subscribe () {
         let newData = model.getDeepCopy(globalPath)
         // For public paths apply filter out the ignored fields
         if (/^[\$_]/.test(globalPath)) {
-          if (_.isPlainObject(newData) && _.isPlainObject(this.state[key]) &&
-              _.isEqual(_.omit(newData, IGNORE_FIELDS),
-              _.omit(this.state[key], IGNORE_FIELDS))
-          ) return
+          if (
+            _.isPlainObject(newData) &&
+            _.isPlainObject(this.state[key]) &&
+            _.isEqual(
+              _.omit(newData, IGNORE_FIELDS),
+              _.omit(this.state[key], IGNORE_FIELDS)
+            )
+          ) { return }
         }
         let newState = {}
         if (!_.isEqual(newData, this.state[key])) {
@@ -209,7 +223,7 @@ export default function subscribe () {
 
       updateQuery (key, collection, newQuery) {
         let shareQuery = this._getShareQuery(key, collection)
-        if (!shareQuery) return console.error('No share query found', key, collection)
+        if (!shareQuery) { return console.error('No share query found', key, collection) }
         shareQuery.setQuery(newQuery)
       }
 
@@ -226,13 +240,13 @@ export default function subscribe () {
       }
 
       render () {
-        return (
-          this.loaded
-          ? React.createElement(DecoratedComponent, {...this.props, ...this.state})
-          : React.createElement('div', {className: 'Loading'})
-        )
+        return this.loaded
+          ? React.createElement(DecoratedComponent, {
+            ...this.props,
+            ...this.state
+          })
+          : React.createElement('div', { className: 'Loading' })
       }
-
     }
 
     return hoistStatics(SubscriptionsContainer, DecoratedComponent)

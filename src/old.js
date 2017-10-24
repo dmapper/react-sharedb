@@ -36,15 +36,20 @@ const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
 export default function subscribe () {
   let getSubscriptions = arguments[arguments.length - 1]
   if (typeof getSubscriptions !== 'function') {
-    throw new Error('[@subscribe] last argument (getSubscriptions) must be a function.')
+    throw new Error(
+      '[@subscribe] last argument (getSubscriptions) must be a function.'
+    )
   }
-  let reactiveProps = Array.prototype.slice.call(arguments, 0, arguments.length - 1)
+  let reactiveProps = Array.prototype.slice.call(
+    arguments,
+    0,
+    arguments.length - 1
+  )
   if (reactiveProps.some(i => typeof i !== 'string')) {
     throw new Error('[@subscribe] reactiveProps must be strings.')
   }
   return function decorateTarget (DecoratedComponent) {
     class SubscriptionsContainer extends React.Component {
-
       constructor (props) {
         super(props)
         this.subscriptions = this.getCurrentSubscriptions(props)
@@ -56,7 +61,7 @@ export default function subscribe () {
       componentWillUnmount () {
         this.unmounted = true
         for (let key in this.listeners) {
-          let {ee, eventName, fn} = this.listeners[key]
+          let { ee, eventName, fn } = this.listeners[key]
           ee.removeListener(eventName, fn)
         }
         delete this.listeners
@@ -65,7 +70,7 @@ export default function subscribe () {
 
       removeListener (key) {
         if (!this.listeners[key]) return
-        let {ee, eventName, fn} = this.listeners[key]
+        let { ee, eventName, fn } = this.listeners[key]
         ee.removeListener(eventName, fn)
         delete this.listeners[key]
       }
@@ -76,7 +81,7 @@ export default function subscribe () {
       }
 
       getCurrentSubscriptions (props) {
-        return getSubscriptions && getSubscriptions(props) || {}
+        return (getSubscriptions && getSubscriptions(props)) || {}
       }
 
       // Update queries when reactiveProps change.
@@ -84,7 +89,7 @@ export default function subscribe () {
       // TODO: Implement support for removing/adding queries
       componentWillReceiveProps (nextProps) {
         let updateQueries = false
-        reactiveProps.forEach((reactiveProp) => {
+        reactiveProps.forEach(reactiveProp => {
           if (!_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])) {
             updateQueries = true
           }
@@ -103,19 +108,19 @@ export default function subscribe () {
                 this.initLocalData(key, globalPath)
               }
             } else {
-              let [ collection, queryParams ] = this.subscriptions[ key ]
+              let [collection, queryParams] = this.subscriptions[key]
               // Update queries
               if (typeof queryParams === 'object') {
-                let [ , prevQueryParams ] = prevSubscriptions[ key ]
+                let [, prevQueryParams] = prevSubscriptions[key]
                 if (!_.isEqual(queryParams, prevQueryParams)) {
                   this.updateQuery(key, collection, queryParams)
                 }
-              // TODO: Implement update docs
-              // For now, if you want a reactive doc subscription -
-              // create a query { _id: props.myId }
+                // TODO: Implement update docs
+                // For now, if you want a reactive doc subscription -
+                // create a query { _id: props.myId }
               } else {
                 // prevQueryParams here is a string
-                let [ , prevQueryParams ] = prevSubscriptions[ key ]
+                let [, prevQueryParams] = prevSubscriptions[key]
                 if (!_.isEqual(queryParams, prevQueryParams)) {
                   this.updateDoc(key, collection, queryParams)
                 }
@@ -135,7 +140,7 @@ export default function subscribe () {
         for (let key in this.subscriptions) {
           if (typeof this.subscriptions[key] === 'string') {
             let globalPath = this.subscriptions[key]
-            localModels.push({key, globalPath})
+            localModels.push({ key, globalPath })
           } else {
             let [collection, queryParams] = this.subscriptions[key]
             if (typeof queryParams === 'string' || !queryParams) {
@@ -153,18 +158,21 @@ export default function subscribe () {
           }
         }
         this.subscriptionsArray = subscriptions.map(i => i.query || i.doc)
-        model.subscribe(this.subscriptionsArray, (err) => {
+        model.subscribe(this.subscriptionsArray, err => {
           if (err) return console.error(err)
           if (this.unmounted) return model.unsubscribe(this.subscriptionsArray)
-          subscriptions.forEach((subscription) => {
+          subscriptions.forEach(subscription => {
             if (subscription.doc) {
               this.initDocData(subscription.key, subscription.doc)
             } else if (subscription.query) {
-              this.initQueryData(subscription.key, subscription.query,
-                  subscription.isExtra)
+              this.initQueryData(
+                subscription.key,
+                subscription.query,
+                subscription.isExtra
+              )
             }
           })
-          localModels.forEach(({key, globalPath}) => {
+          localModels.forEach(({ key, globalPath }) => {
             this.initLocalData(key, globalPath)
           })
           this.loaded = true
@@ -197,10 +205,16 @@ export default function subscribe () {
         let newData = model.getDeepCopy(globalPath)
         // For public paths apply filter out the ignored fields
         if (/^[\$_]/.test(globalPath)) {
-          if (_.isPlainObject(newData) && _.isPlainObject(this.state[key]) &&
-              _.isEqual(_.omit(newData, IGNORE_FIELDS),
-              _.omit(this.state[key], IGNORE_FIELDS))
-          ) return
+          if (
+            _.isPlainObject(newData) &&
+            _.isPlainObject(this.state[key]) &&
+            _.isEqual(
+              _.omit(newData, IGNORE_FIELDS),
+              _.omit(this.state[key], IGNORE_FIELDS)
+            )
+          ) {
+            return
+          }
         }
         let newState = {}
         if (!_.isEqual(newData, this.state[key])) {
@@ -224,13 +238,17 @@ export default function subscribe () {
       listenDoc (collection, docId, key, fn) {
         let shareDoc = model.root.connection.get(collection, docId)
         if (!shareDoc) return console.error('Doc not found:', collection, docId)
-        ;['op', 'del', 'create'].forEach((eventName) => {
+        ;['op', 'del', 'create'].forEach(eventName => {
           let handler = fn
           // Filter `op` ops to ignore changes to the IGNORE_FIELDS
           if (eventName === 'op') {
-            handler = (op) => {
-              if (_.isArray(op) && op[0] && op[0].p &&
-                  IGNORE_FIELDS.indexOf(op[0].p[0]) !== -1) {
+            handler = op => {
+              if (
+                _.isArray(op) &&
+                op[0] &&
+                op[0].p &&
+                IGNORE_FIELDS.indexOf(op[0].p[0]) !== -1
+              ) {
                 return
               }
               fn()
@@ -247,9 +265,9 @@ export default function subscribe () {
       }
 
       clearDocListeners (collection, docId, key) {
-        ;['op', 'del', 'create'].forEach((eventName) => {
+        ;['op', 'del', 'create'].forEach(eventName => {
           let listenerName = `${collection}_${docId}_${key}_${eventName}`
-          let {ee, fn} = this.listeners[listenerName]
+          let { ee, fn } = this.listeners[listenerName]
           ee.removeListener(eventName, fn)
           delete this.listeners[listenerName]
         })
@@ -287,17 +305,17 @@ export default function subscribe () {
         // [update of query documents]
         let docIds = query.getIds()
         let collection = query.collectionName
-        docIds.forEach((docId) => {
+        docIds.forEach(docId => {
           this.listenDoc(collection, docId, key, updateFn)
         })
 
         // [insert]
-        let insertFn = (shareDocs) => {
+        let insertFn = shareDocs => {
           // Update query data
           updateFn()
           // Start listening to changes to the new docs
           let ids = getShareResultsIds(shareDocs)
-          ids.forEach((docId) => {
+          ids.forEach(docId => {
             this.listenDoc(collection, docId, key, updateFn)
           })
         }
@@ -309,12 +327,12 @@ export default function subscribe () {
         }
 
         // [remove]
-        let removeFn = (shareDocs) => {
+        let removeFn = shareDocs => {
           // Update query data
           updateFn()
           // Stop listening the removed docs
           let ids = getShareResultsIds(shareDocs)
-          ids.forEach((docId) => {
+          ids.forEach(docId => {
             this.clearDocListeners(collection, docId, key)
           })
         }
@@ -344,7 +362,9 @@ export default function subscribe () {
 
       updateQuery (key, collection, newQuery) {
         let shareQuery = this._getShareQuery(key, collection)
-        if (!shareQuery) return console.error('No share query found', key, collection)
+        if (!shareQuery) {
+          return console.error('No share query found', key, collection)
+        }
         shareQuery.setQuery(newQuery)
       }
 
@@ -371,7 +391,7 @@ export default function subscribe () {
             newValues[key] = _.cloneDeep(value)
             update = true
           }
-        // Handle normal query (sets array of documents and array of ids)
+          // Handle normal query (sets array of documents and array of ids)
         } else {
           let ids = []
           let value = query.get().filter(doc => {
@@ -397,13 +417,13 @@ export default function subscribe () {
       }
 
       render () {
-        return (
-          this.loaded
-          ? React.createElement(DecoratedComponent, {...this.props, ...this.state})
-          : React.createElement('div', {className: 'Loading'})
-        )
+        return this.loaded
+          ? React.createElement(DecoratedComponent, {
+            ...this.props,
+            ...this.state
+          })
+          : React.createElement('div', { className: 'Loading' })
       }
-
     }
 
     return hoistStatics(SubscriptionsContainer, DecoratedComponent)

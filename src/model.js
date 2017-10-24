@@ -14,7 +14,9 @@ const DEFAULT_CLIENT_OPTIONS = {
 }
 
 racer.Model.prototype._createSocket = function (bundle) {
-  let clientOptions = typeof window !== 'undefined' && window.__racerHighwayClientOptions || DEFAULT_CLIENT_OPTIONS
+  let clientOptions =
+    (typeof window !== 'undefined' && window.__racerHighwayClientOptions) ||
+    DEFAULT_CLIENT_OPTIONS
   return new Socket(clientOptions)
 }
 
@@ -26,7 +28,7 @@ const UNLOAD_DELAY = 100
 
 if (!isServer) {
   let bundleElement = document.getElementById('bundle')
-  bundle = JSON.parse((bundleElement && bundleElement.innerHTML))
+  bundle = JSON.parse(bundleElement && bundleElement.innerHTML)
 
   model = racer.createModel()
 

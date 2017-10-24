@@ -207,7 +207,9 @@ export default function subscribe () {
               _.omit(newData, IGNORE_FIELDS),
               _.omit(this.state[key], IGNORE_FIELDS)
             )
-          ) { return }
+          ) {
+            return
+          }
         }
         let newState = {}
         if (!_.isEqual(newData, this.state[key])) {
@@ -223,7 +225,9 @@ export default function subscribe () {
 
       updateQuery (key, collection, newQuery) {
         let shareQuery = this._getShareQuery(key, collection)
-        if (!shareQuery) { return console.error('No share query found', key, collection) }
+        if (!shareQuery) {
+          return console.error('No share query found', key, collection)
+        }
         shareQuery.setQuery(newQuery)
       }
 

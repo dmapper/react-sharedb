@@ -69,13 +69,6 @@ export default function subscribe () {
         delete this.items
       }
 
-      removeListener (key) {
-        if (!this.listeners[key]) return
-        let { ee, eventName, fn } = this.listeners[key]
-        ee.removeListener(eventName, fn)
-        delete this.listeners[key]
-      }
-
       // Update only after everything loaded
       shouldComponentUpdate (nextProps, nextState) {
         return !!this.loaded
@@ -253,26 +246,6 @@ export default function subscribe () {
           newState['$' + key] = model.scope(globalPath)
         }
         if (update) this.setState(newState)
-      }
-
-      updateQuery (key, collection, newQuery) {
-        let shareQuery = this._getShareQuery(key, collection)
-        if (!shareQuery) {
-          return console.error('No share query found', key, collection)
-        }
-        shareQuery.setQuery(newQuery)
-      }
-
-      // FIXME: Dummy function. Implement real updateDoc()
-      updateDoc (key, collection, newId) {
-        // TODO
-      }
-
-      // A little hacky way to get the sharedQuery from from
-      // saved listeners
-      _getShareQuery (key, collection) {
-        let listener = this.listeners[`${collection}_${key}_insert`]
-        return listener && listener.ee
       }
 
       render () {

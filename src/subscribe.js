@@ -58,12 +58,14 @@ export default function subscribe () {
         this.subscriptions = this.getCurrentSubscriptions(props)
         this.state = {}
         this.listeners = {}
-        this.subscribe()
+        this.init()
       }
 
       componentWillUnmount () {
         this.unmounted = true
-        for (let key in this.items) this.items[key].destroy()
+        for (let key in this.items) {
+          this.destroyItem(key)
+        }
         delete this.items
       }
 
@@ -87,44 +89,24 @@ export default function subscribe () {
       // Right now it only supports changes to the existing queries.
       // TODO: Implement support for removing/adding queries
       componentWillReceiveProps (nextProps) {
-        return false
-        let updateQueries = false
-        reactiveProps.forEach(reactiveProp => {
-          if (!_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])) {
-            updateQueries = true
-          }
-        })
+        let updateQueries = reactiveProps.some(
+          reactiveProp =>
+            !_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])
+        )
         // FIXME: find new keys and init them
         // FIXME: find removed keys and destroy them (clear listeners, etc.)
-        if (updateQueries) {
-          let prevSubscriptions = this.subscriptions
-          this.subscriptions = this.getCurrentSubscriptions(nextProps)
-          for (let key in this.subscriptions) {
-            if (typeof this.subscriptions[key] === 'string') {
-              let globalPath = this.subscriptions[key]
-              let prevGlobalPath = prevSubscriptions[key]
-              if (globalPath !== prevGlobalPath) {
-                this.removeListener(key)
-                this.initLocalData(key, globalPath)
-              }
+        if (!updateQueries) return
+        let prevSubscriptions = this.subscriptions
+        this.subscriptions = this.getCurrentSubscriptions(nextProps)
+        for (let key in this.subscriptions) {
+          if (!_.isEqual(this.subscriptions[key], prevSubscriptions[key])) {
+            if (prevSubscriptions[key]) this.destroyItem(key)
+            if (this.subscriptions[key]) {
+              this.initItem(key)
             } else {
-              let [collection, queryParams] = this.subscriptions[key]
-              // Update queries
-              if (typeof queryParams === 'object') {
-                let [, prevQueryParams] = prevSubscriptions[key]
-                if (!_.isEqual(queryParams, prevQueryParams)) {
-                  this.updateQuery(key, collection, queryParams)
-                }
-                // TODO: Implement update docs
-                // For now, if you want a reactive doc subscription -
-                // create a query { _id: props.myId }
-              } else {
-                // prevQueryParams here is a string
-                let [, prevQueryParams] = prevSubscriptions[key]
-                if (!_.isEqual(queryParams, prevQueryParams)) {
-                  this.updateDoc(key, collection, queryParams)
-                }
-              }
+              // If the subscription was there before but now
+              // it's gone, we should remove the item's data
+              this.removeItemData(key)
             }
           }
         }
@@ -134,45 +116,95 @@ export default function subscribe () {
         return queryParams.$count || queryParams.$aggregate
       }
 
-      async subscribe () {
+      async init () {
         this.items = {}
+        this.itemKeys = {}
         for (let key in this.subscriptions) {
-          let [, params] = this.subscriptions[key]
-          let constructor =
-            typeof params === 'string' || !params
-              ? Doc
-              : this._isExtraQuery(params) ? QueryExtra : Query
+          let constructor = this.getItemConstructor(this.subscriptions[key])
           this.items[key] = new constructor(key, this.subscriptions[key])
         }
         // Init all items
         await Promise.all(_.map(this.items, i => i.init()))
         if (this.unmounted) return
-        // Update all data
-        let data = {}
-        _.reduce(
-          this.items,
-          (data, item) => _.merge(data, item.getData()),
-          data
-        )
-        this.setState(data)
+        this.updateAllData()
         // Start listening for updates
         for (let key in this.items) {
-          this.listenForUpdates(key)
+          this.listenForItemUpdates(key)
         }
         this.loaded = true
         this.forceUpdate()
       }
 
-      listenForUpdates (key) {
+      async initItem (key) {
+        let constructor = this.getItemConstructor(this.subscriptions[key])
+        this.items[key] = new constructor(key, this.subscriptions[key])
+        await this.items[key].init()
+        if (this.unmounted) return
+        this.updateItemData(key)
+        this.listenForItemUpdates(key)
+      }
+
+      destroyItem (key) {
+        this.items[key].destroy()
+        delete this.items[key]
+      }
+
+      getItemConstructor (subscription) {
+        let [, params] = subscription
+        return typeof params === 'string' || !params
+          ? Doc
+          : this._isExtraQuery(params) ? QueryExtra : Query
+      }
+
+      listenForItemUpdates (key) {
         this.items[key].on('update', this.updateItemData.bind(this, key))
       }
 
+      updateAllData () {
+        let data = {}
+        _.reduce(
+          this.items,
+          (data, item, key) => {
+            let itemData = item.getData()
+            this.itemKeys[key] = _.keys(itemData)
+            return _.merge(data, itemData)
+          },
+          data
+        )
+        this.setState(_.cloneDeep(data))
+      }
+
+      // Update item data and also remove any obsolete data
+      // (old keys are tracked it itemKeys)
       updateItemData (key) {
         let data = this.items[key].getData()
-        let equal = _.every(data, (val, key) => _.isEqual(val, this.state[key]))
+        let oldItemKeys = this.itemKeys[key] || []
+        let itemKeys = _.keys(data)
+        let equal = true
+        if (_.xor(oldItemKeys, itemKeys).length > 0) equal = false
+        if (equal) {
+          equal = _.every(data, (val, itemKey) =>
+            _.isEqual(val, this.state[itemKey])
+          )
+        }
+        let removeValues = {}
+        for (let itemKey of _.difference(oldItemKeys, itemKeys)) {
+          _.merge(removeValues, { [itemKey]: null })
+        }
         // TODO: remove log
         // console.log('--UPDATE', this.state, data)
-        if (!equal) this.setState(_.cloneDeep(data))
+        if (!equal) this.setState(_.merge(removeValues, _.cloneDeep(data)))
+      }
+
+      removeItemData (key) {
+        let oldItemKeys = this.itemKeys[key] || []
+        if (oldItemKeys.length === 0) return
+        let removeValues = {}
+        for (let itemKey of oldItemKeys) {
+          _.merge(removeValues, { [itemKey]: null })
+        }
+        delete this.itemKeys[key]
+        this.setState(removeValues)
       }
 
       initLocalData (key, globalPath) {

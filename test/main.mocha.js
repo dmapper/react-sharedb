@@ -179,17 +179,24 @@ describe('Queries', () => {
     await updateAndCheckItems(4, 'red', [3, 4, 5])
   })
 
-  it.skip('dynamic update of query param', async () => {
+  it('dynamic update of query param', async () => {
     w = await initSimple({ color: 'red' }, 'color', props => ({
       items: ['users', { color: props.color }]
     }))
     expect(w.items)
       .to.have.lengthOf(3)
       .and.include.members(alias([3, 4, 5]))
-    w.setProps({ color: 'blue' })
-    await w.nextRender()
-    expect(w.items)
-      .to.have.lengthOf(2)
-      .and.include.members(alias([1, 2]))
+    for (let i = 0; i < 20; i++) {
+      w.setProps({ color: 'blue' })
+      await w.nextRender()
+      expect(w.items)
+        .to.have.lengthOf(2)
+        .and.include.members(alias([1, 2]))
+      w.setProps({ color: 'red' })
+      await w.nextRender()
+      expect(w.items)
+        .to.have.lengthOf(3)
+        .and.include.members(alias([3, 4, 5]))
+    }
   })
 })

@@ -38,6 +38,9 @@ async function initSimple (...args) {
   w.nextRender = function (count = 1) {
     return nextRender(this, count)
   }
+  w.renderSetProps = function (count, props) {
+    return renderSetProps(this, count, props)
+  }
   return w
 }
 
@@ -47,6 +50,50 @@ function getSimpleItems (w) {
   return text.split(',')
 }
 
+async function initComplex (...args) {
+  let Complex = require('./stubs/Complex')
+  let initialProps = {}
+  if (_.isPlainObject(args[0])) {
+    initialProps = args[0]
+    args = args.slice(1)
+  }
+  Complex = subscribe(...args)(Complex)
+  let w = mount(<Complex {...initialProps} />)
+  await w.waitFor('.Complex')
+  w.getItems = function () {
+    return getComplexItems(this)
+  }
+  Object.defineProperty(w, 'items', {
+    get: function () {
+      return this.getItems()
+    }
+  })
+  w.nextRender = function (count = 1) {
+    return nextRender(this, count)
+  }
+  w.renderSetProps = function (count, props) {
+    return renderSetProps(this, count, props)
+  }
+  return w
+}
+
+function getComplexItems (w) {
+  let res = []
+  for (let i = 0; i < 10; i++) {
+    let el = w.find(`.items${i}`)
+    if (!el.exists()) break
+    let text = el.text()
+    let value
+    if (!text) {
+      value = []
+    } else {
+      value = text.split(',')
+    }
+    res.push(value)
+  }
+  return res
+}
+
 function alias (number) {
   const name = n => `test${n}_`
   if (_.isArray(number)) {
@@ -54,6 +101,28 @@ function alias (number) {
   } else {
     return name(number)
   }
+}
+
+async function renderSetProps (w, count, props) {
+  if (!_.isNumber(count)) {
+    props = count
+    count = 1
+  }
+  if (!props) throw new Error('No props provided. Use .nextRender() instead')
+  let currentRender = w.html().match(/RENDER-(\d+)/)[1]
+  if (!currentRender) throw new Error("Component didn't render")
+  currentRender = ~~currentRender
+  // setProps leads to rerender.
+  // each setState also leads to rerender.
+  // BUT some setState's (which are synchronous, for example
+  // the ones triggered by removeItemData()) are happening in
+  // the same render loop with the setProps. So both setState's and
+  // setProps may lead to just a single rerender.
+  // KEEP THIS IN MIND when figuring out how many renders to wait.
+  w.setProps(props)
+  let selector = `.RENDER-${currentRender + count}`
+  console.log('wait for:', selector)
+  await w.waitFor(selector)
 }
 
 async function nextRender (w, count = 1) {
@@ -198,5 +267,81 @@ describe('Queries', () => {
         .to.have.lengthOf(3)
         .and.include.members(alias([3, 4, 5]))
     }
+  })
+})
+
+describe('Complex', () => {
+  it('multiple subscriptions. Query and Doc', async () => {
+    w = await initComplex(
+      {
+        color0: 'red',
+        color1: 'blue'
+      },
+      'color0',
+      'color1',
+      'hasCar',
+      props => {
+        let res = {
+          items0: props.color0 && ['users', { color: props.color0 }],
+          items1: props.color1 && ['users', { color: props.color1 }]
+        }
+        if (props.hasCar) res.items2 = ['cars', 'test1_']
+        return res
+      }
+    )
+    expect(w.items[0])
+      .to.have.lengthOf(3)
+      .and.include.members(alias([3, 4, 5]))
+    expect(w.items[1])
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
+    expect(w.items[2]).to.have.lengthOf(0)
+    // 4 renders should happen: for props change and each item's setState
+    await w.renderSetProps(4, {
+      color0: 'blue',
+      color1: 'red',
+      hasCar: true
+    })
+    expect(w.items[0])
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
+    expect(w.items[1])
+      .to.have.lengthOf(3)
+      .and.include.members(alias([3, 4, 5]))
+    expect(w.items[2])
+      .to.have.lengthOf(1)
+      .and.include.members(alias([1]))
+    // 1 render should happen: for props and removeItemData -- sync
+    await w.renderSetProps({ hasCar: false })
+    expect(w.items[0])
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
+    expect(w.items[1])
+      .to.have.lengthOf(3)
+      .and.include.members(alias([3, 4, 5]))
+    expect(w.items[2]).to.have.lengthOf(0)
+    await w.renderSetProps(3, {
+      color0: undefined,
+      color1: { $in: ['red', 'blue'] },
+      hasCar: true
+    })
+    expect(w.items[0]).to.have.lengthOf(0)
+    expect(w.items[1])
+      .to.have.lengthOf(5)
+      .and.include.members(alias([1, 2, 3, 4, 5]))
+    expect(w.items[2])
+      .to.have.lengthOf(1)
+      .and.include.members(alias([1]))
+    await w.renderSetProps(2, {
+      color0: 'red',
+      hasCar: false
+    })
+    expect(w.items[0])
+      .to.have.lengthOf(3)
+      .and.include.members(alias([3, 4, 5]))
+    expect(w.items[1])
+      .to.have.lengthOf(5)
+      .and.include.members(alias([1, 2, 3, 4, 5]))
+    expect(w.items[2]).to.have.lengthOf(0)
   })
 })

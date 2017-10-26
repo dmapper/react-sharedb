@@ -91,7 +91,12 @@ export default function subscribe () {
         if (!updateQueries) return
         let prevSubscriptions = this.subscriptions
         this.subscriptions = this.getCurrentSubscriptions(nextProps)
-        for (let key in this.subscriptions) {
+        let keys = _.union(
+          _.keys(prevSubscriptions),
+          _.keys(this.subscriptions)
+        )
+        keys = _.uniq(keys)
+        for (let key of keys) {
           if (!_.isEqual(this.subscriptions[key], prevSubscriptions[key])) {
             if (prevSubscriptions[key]) this.destroyItem(key)
             if (this.subscriptions[key]) {
@@ -173,6 +178,7 @@ export default function subscribe () {
         let data = this.items[key].getData()
         let oldItemKeys = this.itemKeys[key] || []
         let itemKeys = _.keys(data)
+        this.itemKeys[key] = itemKeys
         let equal = true
         if (_.xor(oldItemKeys, itemKeys).length > 0) equal = false
         if (equal) {

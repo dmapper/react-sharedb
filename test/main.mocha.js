@@ -271,7 +271,7 @@ describe('Queries', () => {
 })
 
 describe('Complex', () => {
-  it('multiple subscriptions. Query and Doc', async () => {
+  it('multiple subscriptions. Query and Doc. Removal of keys.', async () => {
     w = await initComplex(
       {
         color0: 'red',

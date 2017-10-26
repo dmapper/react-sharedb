@@ -72,6 +72,5 @@ export default class Doc extends Base {
       this._unsubscribe()
     } catch (err) {}
     delete this.params
-    delete this.data
   }
 }

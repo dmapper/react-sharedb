@@ -5,6 +5,7 @@ import hoistStatics from 'hoist-non-react-statics'
 import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
+import Local from './types/Local'
 
 // Updates to the following fields are going to be ignored (props WON'T be updated)
 const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
@@ -148,6 +149,7 @@ export default function subscribe () {
       }
 
       getItemConstructor (subscription) {
+        if (typeof subscription === 'string') return Local
         let [, params] = subscription
         return typeof params === 'string' || !params
           ? Doc
@@ -179,20 +181,18 @@ export default function subscribe () {
         let oldItemKeys = this.itemKeys[key] || []
         let itemKeys = _.keys(data)
         this.itemKeys[key] = itemKeys
-        let equal = true
-        if (_.xor(oldItemKeys, itemKeys).length > 0) equal = false
-        if (equal) {
-          equal = _.every(data, (val, itemKey) =>
-            _.isEqual(val, this.state[itemKey])
-          )
-        }
+        let equal = this.items[key].isEqual(
+          data,
+          _.pick(this.state, oldItemKeys)
+        )
+        if (equal) return
         let removeValues = {}
         for (let itemKey of _.difference(oldItemKeys, itemKeys)) {
           _.merge(removeValues, { [itemKey]: null })
         }
         // TODO: remove log
         // console.log('--UPDATE', this.state, data)
-        if (!equal) this.setState(_.merge(removeValues, _.cloneDeep(data)))
+        this.setState(_.merge(removeValues, _.cloneDeep(data)))
       }
 
       removeItemData (key) {

@@ -137,7 +137,6 @@ export default class Query extends Base {
       this._unsubscribe()
     } catch (err) {}
     delete this.params
-    delete this.data
   }
 }
 

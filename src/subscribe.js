@@ -1,14 +1,10 @@
 import _ from 'lodash'
 import React from 'react'
-import model from './model'
 import hoistStatics from 'hoist-non-react-statics'
 import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
-
-// Updates to the following fields are going to be ignored (props WON'T be updated)
-const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']
 
 // TODO: Explore the possibilities to optimize _.isEqual and _.clone
 // http://stackoverflow.com/q/122102
@@ -204,54 +200,6 @@ export default function subscribe () {
         }
         delete this.itemKeys[key]
         this.setState(removeValues)
-      }
-
-      initLocalData (key, globalPath) {
-        this.updateLocalData(key, globalPath, true)
-        let fn = () => this.updateLocalData(key, globalPath)
-        this.listenGlobalPath(key, globalPath, fn)
-      }
-
-      listenGlobalPath (key, globalPath, fn) {
-        let listener = model.on('all', globalPath + '.**', fn)
-        this.listeners[key] = {
-          ee: model,
-          eventName: 'all',
-          fn: listener
-        }
-      }
-
-      /**
-       * @param key
-       * @param globalPath
-       * @param updateModel -- force creation of new $model field
-       */
-      updateLocalData (key, globalPath, updateModel) {
-        let update = false
-        let newData = model.getDeepCopy(globalPath)
-        // For public paths apply filter out the ignored fields
-        if (/^[\$_]/.test(globalPath)) {
-          if (
-            _.isPlainObject(newData) &&
-            _.isPlainObject(this.state[key]) &&
-            _.isEqual(
-              _.omit(newData, IGNORE_FIELDS),
-              _.omit(this.state[key], IGNORE_FIELDS)
-            )
-          ) {
-            return
-          }
-        }
-        let newState = {}
-        if (!_.isEqual(newData, this.state[key])) {
-          update = true
-          newState[key] = newData
-        }
-        if (updateModel) {
-          update = true
-          newState['$' + key] = model.scope(globalPath)
-        }
-        if (update) this.setState(newState)
       }
 
       render () {

@@ -7,7 +7,6 @@ export default class Base extends EventEmitter {
     super()
     this.key = key
     this.data = undefined
-    this.ready = false
     this.params = params
   }
 

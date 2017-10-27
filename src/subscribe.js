@@ -171,7 +171,7 @@ export default function subscribe () {
           },
           data
         )
-        this.setState(_.cloneDeep(data))
+        this.setState(customClone(data))
       }
 
       // Update item data and also remove any obsolete data
@@ -192,7 +192,7 @@ export default function subscribe () {
         }
         // TODO: remove log
         // console.log('--UPDATE', this.state, data)
-        this.setState(_.merge(removeValues, _.cloneDeep(data)))
+        this.setState(_.merge(removeValues, customClone(data)))
       }
 
       removeItemData (key) {
@@ -266,4 +266,21 @@ export default function subscribe () {
 
     return hoistStatics(SubscriptionsContainer, DecoratedComponent)
   }
+}
+
+export function isModelKey (key) {
+  return /^\$/.test(key)
+}
+
+// Don't clone models (which are starting with $)
+export function customClone (data) {
+  let res = {}
+  for (let key in data) {
+    if (isModelKey(key)) {
+      res[key] = data[key]
+    } else {
+      res[key] = _.cloneDeep(data[key])
+    }
+  }
+  return res
 }

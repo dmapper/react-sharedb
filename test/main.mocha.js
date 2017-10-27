@@ -16,16 +16,18 @@ ReactWrapper.prototype.waitFor = function (selector) {
 let subscribe
 let serverModel
 let w
+let Simple
+let Complex
+let model
 
 async function initSimple (...args) {
-  let Simple = require('./stubs/Simple')
   let initialProps = {}
   if (_.isPlainObject(args[0])) {
     initialProps = args[0]
     args = args.slice(1)
   }
-  Simple = subscribe(...args)(Simple)
-  let w = mount(<Simple {...initialProps} />)
+  let Subscribed = subscribe(...args)(Simple)
+  let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Simple')
   w.getItems = function () {
     return getSimpleItems(this)
@@ -51,14 +53,13 @@ function getSimpleItems (w) {
 }
 
 async function initComplex (...args) {
-  let Complex = require('./stubs/Complex')
   let initialProps = {}
   if (_.isPlainObject(args[0])) {
     initialProps = args[0]
     args = args.slice(1)
   }
-  Complex = subscribe(...args)(Complex)
-  let w = mount(<Complex {...initialProps} />)
+  let Subscribed = subscribe(...args)(Complex)
+  let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Complex')
   w.getItems = function () {
     return getComplexItems(this)
@@ -139,6 +140,9 @@ async function nextRender (w, count = 1) {
 before(() => {
   serverModel = require('./_client/initRpc')
   subscribe = require('../src').subscribe
+  model = require('../src').model
+  Simple = require('./stubs/Simple')
+  Complex = require('./stubs/Complex')
 })
 
 // Unmount component after each test
@@ -343,5 +347,41 @@ describe('Complex', () => {
       .to.have.lengthOf(5)
       .and.include.members(alias([1, 2, 3, 4, 5]))
     expect(w.items[2]).to.have.lengthOf(0)
+  })
+})
+
+describe('Local', () => {
+  it('should return $model which is not a clone', async () => {
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items).to.have.lengthOf(0)
+    let $document = w
+      .find(Simple)
+      .first()
+      .prop('$items')
+    expect($document).to.exist
+    model.set('_page.document', { id: alias(1), name: alias(1) })
+    // If $document is a clone, it won't have the same data tree
+    expect($document.get()).to.deep.equal(model.get('_page.document'))
+    model.del('_page.document')
+  })
+
+  it('should update data', async () => {
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items).to.have.lengthOf(0)
+    model.set('_page.document', { id: alias(1), name: alias(1) })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+    model.set('_page.document', { id: alias(2), name: alias(2) })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(2))
+    model.del('_page.document')
+    expect(w.items).to.have.lengthOf(0)
+    model.set('_page.document', { id: alias(3), name: alias(3) })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(3))
+    model.del('_page.document')
   })
 })

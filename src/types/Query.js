@@ -2,6 +2,8 @@ import model from '../model'
 import Base from './Base'
 import DocListener from '../helpers/DocListener'
 
+const MAX_LISTENERS = 100
+
 export default class Query extends Base {
   constructor (...args) {
     super(...args)
@@ -50,6 +52,9 @@ export default class Query extends Base {
       docListener.on('update', () => this.emit('update'))
       docListener.init()
     }
+
+    // Increase the listeners cap
+    subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
 
     // [insert]
     let insertFn = shareDocs => {

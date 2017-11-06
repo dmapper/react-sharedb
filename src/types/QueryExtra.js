@@ -1,9 +1,14 @@
 import Query from './Query'
 
+const MAX_LISTENERS = 100
+
 export default class QueryExtra extends Query {
   _listenForUpdates () {
     let { subscription } = this
     this.listeners = []
+
+    // Increase the listeners cap
+    subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
 
     // [update of the extra ($count, $aggregate)]
     let updateFn = () => this.emit('update')

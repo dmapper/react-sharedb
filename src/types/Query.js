@@ -106,14 +106,14 @@ export default class Query extends Base {
     if (!this.listens) return
     // remove query's docs listeners
     for (let docId in this.docListeners) {
-      this.docListener[docId].destroy()
-      delete this.docListener[docId]
+      this.docListeners[docId].destroy()
+      delete this.docListeners[docId]
     }
     // remove query listeners
     for (let listener of this.listeners) {
       listener.ee.removeListener(listener.eventName, listener.fn)
     }
-    delete this.docListener
+    delete this.docListeners
     delete this.listeners
     delete this.listens
   }

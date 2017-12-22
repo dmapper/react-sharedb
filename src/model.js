@@ -1,30 +1,56 @@
 import racer from 'racer'
-import 'racer-highway/lib/browser/index.js'
+import Socket from 'racer-highway/lib/browser/socket'
 let isServer = typeof window === 'undefined'
+const DEFAULT_CLIENT_OPTIONS = {
+  base: '/channel',
+  reconnect: true,
+  browserChannelOnly: false,
+  srvProtocol: undefined,
+  srvHost: undefined,
+  srvPort: undefined,
+  srvSecurePort: undefined,
+  timeout: 10000,
+  timeoutIncrement: 10000
+}
+const DEFAULT_UNLOAD_DELAY = 3000 // short delay, like 100, might be better
 
-let bundle
-let model
+racer.Model.prototype._createSocket = function () {
+  let clientOptions =
+    (typeof window !== 'undefined' && window.__racerHighwayClientOptions) ||
+    DEFAULT_CLIENT_OPTIONS
+  return new Socket(clientOptions)
+}
 
-// TODO: Try how it works with big unload delay -- 10 seconds or so
-const UNLOAD_DELAY = 100
+function getModel () {
+  if (isServer) return
+  let model = racer.createModel()
 
-if (!isServer) {
-  let bundleElement = document.getElementById('bundle')
-  bundle = JSON.parse((bundleElement && bundleElement.innerHTML))
-
-  model = racer.createModel()
-
-  // HACK: workaround for tests
+  // Try to establish connection
   try {
     model.createConnection()
   } catch (err) {
-    console.log(err)
+    console.error('Error establishing connection with server', err)
   }
 
-  if (bundle) model.unbundle(bundle)
+  // Try to unbundle server-side model
+  let bundleElement = document.getElementById('bundle')
+  let serializedModel = bundleElement && bundleElement.innerHTML
+  if (serializedModel) {
+    try {
+      model.unbundle(JSON.parse(serializedModel))
+    } catch (err) {
+      console.error('Error unbundling server-side model')
+    }
+  } else {
+    console.warn('No model bundle received from the server')
+  }
 
-  // Time before unsubscribe really does
-  model.root.unloadDelay = UNLOAD_DELAY
+  // Specify the time it takes before unsubscribe actually fires
+  let unloadDelay =
+    (typeof window !== 'undefined' && window.__racerUnloadDelay) ||
+    DEFAULT_UNLOAD_DELAY
+  model.root.unloadDelay = unloadDelay
+  return model
 }
 
-export default model
+export default getModel()

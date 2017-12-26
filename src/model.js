@@ -1,6 +1,23 @@
 import racer from 'racer'
-import 'racer-highway/lib/browser/index.js'
 let isServer = typeof window === 'undefined'
+import Socket from 'racer-highway/lib/browser/socket'
+const DEFAULT_CLIENT_OPTIONS = {
+  base: '/channel',
+  reconnect: true,
+  browserChannelOnly: false,
+  srvProtocol: undefined,
+  srvHost: undefined,
+  srvPort: undefined,
+  srvSecurePort: undefined,
+  timeout: 10000,
+  timeoutIncrement: 10000
+}
+racer.Model.prototype._createSocket = function () {
+  let clientOptions =
+    (typeof window !== 'undefined' && window.__racerHighwayClientOptions) ||
+    DEFAULT_CLIENT_OPTIONS
+  return new Socket(clientOptions)
+}
 
 let bundle
 let model

@@ -23,6 +23,7 @@ racer.Model.prototype._createSocket = function () {
 
 function getModel () {
   if (isServer) return
+
   let model = racer.createModel()
 
   // Try to establish connection

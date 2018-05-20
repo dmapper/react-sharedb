@@ -15,13 +15,13 @@ export default class Local extends Base {
 
   _listenForUpdates () {
     let { $model } = this
-    $model.on('all', '**', () => this.emit('update'))
+    this.listener = $model.on('all', '**', () => this.emit('update'))
   }
 
   _clearListeners () {
     let { $model } = this
     if (!$model) return
-    $model.removeAllListeners()
+    if (this.listener) $model.removeListener('all', this.listener)
     delete this.$model
   }
 

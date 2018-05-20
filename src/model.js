@@ -34,7 +34,10 @@ function getModel () {
   }
 
   // Try to unbundle server-side model
-  let bundleElement = document.getElementById('bundle')
+  let bundleElement =
+    typeof document !== 'undefined' &&
+    document.getElementById &&
+    document.getElementById('bundle')
   let serializedModel = bundleElement && bundleElement.innerHTML
   if (serializedModel) {
     try {

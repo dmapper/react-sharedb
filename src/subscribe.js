@@ -203,12 +203,22 @@ export default function subscribe () {
       }
 
       render () {
-        return this.loaded
-          ? React.createElement(DecoratedComponent, {
+        if (this.loaded) {
+          return React.createElement(DecoratedComponent, {
             ...this.props,
             ...this.state
           })
-          : React.createElement('div', { className: 'Loading' })
+        } else {
+          // When in React Native env, don't use any loading spinner
+          if (
+            typeof navigator !== 'undefined' &&
+            navigator.product === 'ReactNative'
+          ) {
+            return null
+          } else {
+            return React.createElement('div', { className: 'Loading' })
+          }
+        }
       }
     }
 

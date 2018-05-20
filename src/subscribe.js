@@ -9,9 +9,14 @@ import Local from './types/Local'
 // TODO: Explore the possibilities to optimize _.isEqual and _.clone
 // http://stackoverflow.com/q/122102
 
+// Deprecate the reactiveProps list of items.
+// Make all queries reactive by default (evaluate subscriptions getter
+// whenever props change).
+const REACTIVE_BY_DEFAULT = true
+
 /**
  * ShareDB subscriptions decorator.
- * @param [reactiveProp] {...string} - names of the props which trigger resubscribe
+ * @param [reactiveProp] {...string} - DEPRECATED! names of the props which trigger resubscribe
  *    Update subscription when any of them changes.
  * @param getSubscriptions {Function} - (props, state) Retrieve initial subscriptions data
  * @returns {Function}
@@ -75,17 +80,16 @@ export default function subscribe () {
         return (getSubscriptions && getSubscriptions(props)) || {}
       }
 
-      // Update queries when reactiveProps change.
-      // Right now it only supports changes to the existing queries.
-      // TODO: Implement support for removing/adding queries
+      // Update queries whenever props change and if the subscriptions
+      // object changes as a result of that
       componentWillReceiveProps (nextProps) {
-        let updateQueries = reactiveProps.some(
-          reactiveProp =>
-            !_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])
-        )
-        // FIXME: find new keys and init them
-        // FIXME: find removed keys and destroy them (clear listeners, etc.)
-        if (!updateQueries) return
+        if (!REACTIVE_BY_DEFAULT) {
+          let updateQueries = reactiveProps.some(
+            reactiveProp =>
+              !_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])
+          )
+          if (!updateQueries) return
+        }
         let prevSubscriptions = this.subscriptions
         this.subscriptions = this.getCurrentSubscriptions(nextProps)
         let keys = _.union(

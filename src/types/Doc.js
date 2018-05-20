@@ -48,7 +48,7 @@ export default class Doc extends Base {
   }
 
   getData () {
-    let { collection, docId, key } = this
+    let { collection, docId, key, subscription } = this
     let value
     if (collection === 'texts') {
       value = model.connection.get('texts', docId)
@@ -56,7 +56,7 @@ export default class Doc extends Base {
     } else {
       value = model.get(`${collection}.${docId}`)
     }
-    return { [key]: value }
+    return { [`$${key}`]: subscription, [key]: value }
   }
 
   shouldForceUpdate () {

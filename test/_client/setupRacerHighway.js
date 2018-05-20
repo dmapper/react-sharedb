@@ -5,7 +5,7 @@ typeof window !== 'undefined' &&
     browserChannelOnly: false,
     srvProtocol: 'ws:',
     srvHost: 'localhost',
-    srvPort: 3000,
+    srvPort: process.env.PORT || 3000,
     srvSecurePort: undefined,
     timeout: 10000,
     timeoutIncrement: 10000

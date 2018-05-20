@@ -12,7 +12,10 @@ import Local from './types/Local'
 // Deprecate the reactiveProps list of items.
 // Make all queries reactive by default (evaluate subscriptions getter
 // whenever props change).
-const REACTIVE_BY_DEFAULT = true
+const REACTIVE_BY_DEFAULT_OVERRIDE =
+  typeof window !== 'undefined' && window.__sharedbReactiveByDefault
+const REACTIVE_BY_DEFAULT =
+  REACTIVE_BY_DEFAULT_OVERRIDE != null ? REACTIVE_BY_DEFAULT_OVERRIDE : true
 
 /**
  * ShareDB subscriptions decorator.

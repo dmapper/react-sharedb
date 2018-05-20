@@ -4,17 +4,15 @@ const DEFAULT_COLLECTION = '$components'
 
 export default function singleton (Component) {
   let model = generateScopedModel()
-  return function (Component) {
-    Component.model = model
-    Component.path = model.path.bind(model)
-    let _componentWillUnmount = Component.prototype.componentWillUnmount
-    Component.prototype.componentWillUnmount = function (...args) {
-      if (_componentWillUnmount) _componentWillUnmount.call(this, ...args)
-      model.removeContextListeners()
-      model.destroy()
-    }
-    return Component
+  Component.model = model
+  Component.path = model.path.bind(model)
+  let _componentWillUnmount = Component.prototype.componentWillUnmount
+  Component.prototype.componentWillUnmount = function (...args) {
+    if (_componentWillUnmount) _componentWillUnmount.call(this, ...args)
+    model.removeContextListeners()
+    model.destroy()
   }
+  return Component
 }
 
 function generateScopedModel () {

@@ -11,7 +11,6 @@ export default function local (Component) {
   let _componentWillUnmount = Component.prototype.componentWillUnmount
   Component.prototype.componentWillUnmount = function (...args) {
     if (_componentWillUnmount) _componentWillUnmount.call(this, ...args)
-    this.model.removeContextListeners()
     this.model.destroy()
     delete this.model
   }

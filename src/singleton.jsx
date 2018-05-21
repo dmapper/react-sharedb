@@ -9,7 +9,6 @@ export default function singleton (Component) {
   let _componentWillUnmount = Component.prototype.componentWillUnmount
   Component.prototype.componentWillUnmount = function (...args) {
     if (_componentWillUnmount) _componentWillUnmount.call(this, ...args)
-    model.removeContextListeners()
     model.destroy()
   }
   return Component

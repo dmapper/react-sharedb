@@ -26,7 +26,7 @@ async function initSimple (...args) {
     initialProps = args[0]
     args = args.slice(1)
   }
-  let Subscribed = subscribe(...args)(Simple)
+  let Subscribed = subscribe(...args)(Simple())
   let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Simple')
   w.getItems = function () {
@@ -151,7 +151,7 @@ afterEach(() => {
   w.unmount()
 })
 
-describe('Helpers', () => {
+describe.only('Helpers', () => {
   it('test RPC', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
     w = await initSimple(() => ({ items: ['users', alias(1)] }))
@@ -169,7 +169,7 @@ describe('Helpers', () => {
   })
 })
 
-describe('Docs', () => {
+describe.only('Docs', () => {
   it('doc by id', async () => {
     w = await initSimple(() => ({ items: ['users', alias(3)] }))
     expect(w.items)

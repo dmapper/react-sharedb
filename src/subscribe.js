@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import React from 'react'
 import model from './model'
 import Tracker from 'trackerjs'
@@ -9,6 +10,7 @@ import Local from './types/Local'
 const DEFAULT_COLLECTION = '$components'
 const RENDER_COMPUTATION_NAME = '__renderComputation'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
+const HELPER_METHODS_TO_BIND = ['get', 'at', 'atMap', 'atForEach']
 
 export default function subscribe (...fns) {
   return function derorateTarget (Component) {
@@ -33,6 +35,7 @@ const subscribeLocalMixin = (
 ) => ({
   componentWillMount (...args) {
     this.model = generateScopedModel()
+    bindMethods(this.model, HELPER_METHODS_TO_BIND)
     this.autorunRender()
     this.autorunSubscriptions()
     if (oldComponentWillMount) oldComponentWillMount.call(this, ...args)
@@ -56,14 +59,14 @@ const subscribeLocalMixin = (
     delete this[RENDER_COMPUTATION_NAME]
     // Stop all subscription params computations
     for (let index = 0; index < this.__dataFns.length; index++) {
-      let computationName = computationName(index)
+      let computationName = getComputationName(index)
       this[computationName] && this[computationName].stop()
       delete this[computationName]
     }
     delete this.__dataFns
     // Destroy all subscription items
     for (let key in this.items) {
-      this.destroyItem(key)
+      this.__destroyItem(key)
     }
     this.model.destroy()
     delete this.model
@@ -107,7 +110,7 @@ const subscribeLocalMixin = (
       let subscriptions = {}
       let dataFn = async props => {
         let prevSubscriptions = subscriptions || {}
-        let computationName = computationName(index)
+        let computationName = getComputationName(index)
         let subscribeFn = () => fn.call(this, props)
         subscriptions = Tracker.once(computationName, this, subscribeFn, fn)
         let keys = _.union(_.keys(prevSubscriptions), _.keys(subscriptions))
@@ -118,7 +121,9 @@ const subscribeLocalMixin = (
             // it's gone, we should remove the item's data
             if (!subscriptions[key]) this.__removeItemRefs(key)
             if (prevSubscriptions[key]) this.__destroyItem(key)
-            if (subscriptions[key]) await this.__initItem(key)
+            if (subscriptions[key]) {
+              await this.__initItem(key, subscriptions[key])
+            }
           }
         }
       }
@@ -133,9 +138,9 @@ const subscribeLocalMixin = (
     // since render will execute on its own later in the lifecycle.
     if (this.__rendered) this.forceUpdate()
   },
-  async __initItem (key) {
-    let constructor = this.getItemConstructor(this.subscriptions[key])
-    let item = new constructor(key, this.subscriptions[key])
+  async __initItem (key, params) {
+    let constructor = getItemConstructor(params)
+    let item = new constructor(this.model, key, params)
     await item.init()
     if (this.unmounted) return item.destroy()
     item.refModel()
@@ -168,6 +173,12 @@ function getItemConstructor (subscription) {
     : isExtraQuery(params) ? QueryExtra : Query
 }
 
-function computationName (index) {
-  return `__${SUBSCRIBE_COMPUTATION_NAME}${index}`
+function getComputationName (index) {
+  return `${SUBSCRIBE_COMPUTATION_NAME}${index}`
+}
+
+function bindMethods (object, methodsToBind) {
+  for (let method of methodsToBind) {
+    object[method] = object[method].bind(object)
+  }
 }

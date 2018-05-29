@@ -1,6 +1,5 @@
 import model from '../model'
 import Base from './Base'
-import DocListener from '../helpers/DocListener'
 
 export default class Doc extends Base {
   constructor (...args) {
@@ -12,9 +11,16 @@ export default class Doc extends Base {
 
   async init () {
     await this._subscribe()
-    // Can be destroyed while subscribe is still in progress
-    if (this.destroyed) return
-    this._listenForUpdates()
+  }
+
+  refModel () {
+    let { key } = this
+    this.model.ref(key, this.subscription)
+  }
+
+  unrefModel () {
+    let { key } = this
+    this.model.removeRef(key)
   }
 
   async _subscribe () {
@@ -34,43 +40,14 @@ export default class Doc extends Base {
     delete this.subscription
   }
 
-  _listenForUpdates () {
-    let { collection, docId } = this
-    this.docListener = new DocListener(collection, docId)
-    this.docListener.on('update', () => this.emit('update'))
-    this.docListener.init()
-  }
-
-  _clearListeners () {
-    if (!this.docListener) return
-    this.docListener.destroy()
-    delete this.docListener
-  }
-
-  getData () {
-    let { collection, docId, key, subscription } = this
-    let value
-    if (collection === 'texts') {
-      value = model.connection.get('texts', docId)
-      value = value && value.data
-    } else {
-      value = model.get(`${collection}.${docId}`)
-    }
-    return { [`$${key}`]: subscription, [key]: value }
-  }
-
-  shouldForceUpdate () {
-    return this.collection === 'texts'
-  }
-
   destroy () {
-    this.destroyed = true
-    this.removeAllListeners()
     try {
-      this._clearListeners()
+      // this.unrefModel() // TODO: Maybe enable unref in future
       // TODO: Test what happens when trying to unsubscribe from not yet subscribed
       this._unsubscribe()
     } catch (err) {}
-    delete this.params
+    delete this.docId
+    delete this.collection
+    super.destroy()
   }
 }

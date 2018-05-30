@@ -43,7 +43,7 @@ const subscribeLocalMixin = (
   // TODO: Implement queueing
   async componentWillReceiveProps (...args) {
     let [nextProps] = args
-    for (let dataFn in this.__dataFns) {
+    for (let dataFn of this.__dataFns) {
       await dataFn(nextProps)
       if (this.unmounted) return
     }
@@ -112,7 +112,7 @@ const subscribeLocalMixin = (
         let prevSubscriptions = subscriptions || {}
         let computationName = getComputationName(index)
         let subscribeFn = () => fn.call(this, props)
-        subscriptions = Tracker.once(computationName, this, subscribeFn, fn)
+        subscriptions = Tracker.once(computationName, this, subscribeFn, dataFn)
         let keys = _.union(_.keys(prevSubscriptions), _.keys(subscriptions))
         keys = _.uniq(keys)
         for (let key of keys) {

@@ -10,7 +10,7 @@ Model.prototype.atMap = function (subpath, fn) {
   }
   let model = subpath ? this.at(subpath) : this
   let collection = model.get()
-  return _.map(collection, (value, key) => model.at(key))
+  return _.map(collection, (value, key) => fn(model.at(key)))
 }
 
 Model.prototype.atForEach = function (subpath, fn) {
@@ -20,5 +20,5 @@ Model.prototype.atForEach = function (subpath, fn) {
   }
   let model = subpath ? this.at(subpath) : this
   let collection = model.get()
-  return _.forEach(collection, (value, key) => model.at(key))
+  return _.forEach(collection, (value, key) => fn(model.at(key)))
 }

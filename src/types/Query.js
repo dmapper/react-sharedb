@@ -17,8 +17,8 @@ export default class Query extends Base {
 
   refModel () {
     let { key } = this
-    this.query.ref(this.model.at(key))
-    this.query.refIds(this.model.at(getIdsName(key)))
+    this.subscription.ref(this.model.at(key))
+    this.subscription.refIds(this.model.at(getIdsName(key)))
   }
 
   unrefModel () {

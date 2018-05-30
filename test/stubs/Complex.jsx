@@ -6,18 +6,12 @@ const ITEMS_AMOUNT = 4
 export default class Complex extends React.Component {
   constructor (props) {
     super(props)
-    this.state = {
-      renderCount: 1
-    }
-  }
-
-  componentWillReceiveProps () {
-    this.setState({ renderCount: this.state.renderCount + 1 })
+    this.renderCount = 0
   }
 
   render () {
-    let { renderCount } = this.state
-    if (typeof DEBUG !== 'undefined') console.log(`RENDER ${renderCount}:`)
+    this.renderCount++
+    if (typeof DEBUG !== 'undefined') console.log(`RENDER ${this.renderCount}:`)
     let itemEls = []
     for (let i = 0; i < ITEMS_AMOUNT; i++) {
       let items = this.props[`items${i}`]
@@ -34,6 +28,6 @@ export default class Complex extends React.Component {
         </div>
       )
     }
-    return <div className={`Complex RENDER-${renderCount}`}>{itemEls}</div>
+    return <div className={`Complex RENDER-${this.renderCount}`}>{itemEls}</div>
   }
 }

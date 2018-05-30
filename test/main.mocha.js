@@ -151,7 +151,7 @@ afterEach(() => {
   w.unmount()
 })
 
-describe.only('Helpers', () => {
+describe('Helpers', () => {
   it('test RPC', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
     w = await initSimple(() => ({ items: ['users', alias(1)] }))
@@ -169,7 +169,7 @@ describe.only('Helpers', () => {
   })
 })
 
-describe.only('Docs', () => {
+describe('Docs', () => {
   it('doc by id', async () => {
     w = await initSimple(() => ({ items: ['users', alias(3)] }))
     expect(w.items)
@@ -196,7 +196,7 @@ describe.only('Docs', () => {
   })
 })
 
-describe.only('Queries', () => {
+describe('Queries', () => {
   it('all collection', async () => {
     w = await initSimple(() => ({ items: ['users', {}] }))
     expect(w.items)
@@ -274,7 +274,8 @@ describe.only('Queries', () => {
   })
 })
 
-describe('Complex', () => {
+// TODO
+describe.skip('Complex', () => {
   it('multiple subscriptions. Query and Doc. Removal of keys.', async () => {
     w = await initComplex(
       {
@@ -351,34 +352,24 @@ describe('Complex', () => {
 })
 
 describe('Local', () => {
-  it('should return $model which is not a clone', async () => {
-    w = await initSimple(() => ({ items: '_page.document' }))
-    expect(w.items).to.have.lengthOf(0)
-    let $document = w
-      .find(Simple)
-      .first()
-      .prop('$items')
-    expect($document).to.exist
-    model.set('_page.document', { id: alias(1), name: alias(1) })
-    // If $document is a clone, it won't have the same data tree
-    expect($document.get()).to.deep.equal(model.get('_page.document'))
-    model.del('_page.document')
-  })
-
   it('should update data', async () => {
     w = await initSimple(() => ({ items: '_page.document' }))
     expect(w.items).to.have.lengthOf(0)
     model.set('_page.document', { id: alias(1), name: alias(1) })
+    await w.nextRender()
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include(alias(1))
     model.set('_page.document', { id: alias(2), name: alias(2) })
+    await w.nextRender()
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include(alias(2))
     model.del('_page.document')
+    await w.nextRender()
     expect(w.items).to.have.lengthOf(0)
     model.set('_page.document', { id: alias(3), name: alias(3) })
+    await w.nextRender()
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include(alias(3))

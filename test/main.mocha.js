@@ -58,7 +58,7 @@ async function initComplex (...args) {
     initialProps = args[0]
     args = args.slice(1)
   }
-  let Subscribed = subscribe(...args)(Complex)
+  let Subscribed = subscribe(...args)(Complex())
   let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Complex')
   w.getItems = function () {
@@ -274,23 +274,19 @@ describe('Queries', () => {
   })
 })
 
-// TODO
-describe.skip('Complex', () => {
+describe('Complex', () => {
   it('multiple subscriptions. Query and Doc. Removal of keys.', async () => {
     w = await initComplex(
       {
         color0: 'red',
         color1: 'blue'
       },
-      'color0',
-      'color1',
-      'hasCar',
-      props => {
+      ({ color0, color1, hasCar }) => {
         let res = {
-          items0: props.color0 && ['users', { color: props.color0 }],
-          items1: props.color1 && ['users', { color: props.color1 }]
+          items0: color0 && ['users', { color: color0 }],
+          items1: color1 && ['users', { color: color1 }]
         }
-        if (props.hasCar) res.items2 = ['cars', 'test1_']
+        if (hasCar) res.items2 = ['cars', 'test1_']
         return res
       }
     )
@@ -302,7 +298,7 @@ describe.skip('Complex', () => {
       .and.include.members(alias([1, 2]))
     expect(w.items[2]).to.have.lengthOf(0)
     // 4 renders should happen: for props change and each item's setState
-    await w.renderSetProps(4, {
+    await w.renderSetProps(3, {
       color0: 'blue',
       color1: 'red',
       hasCar: true
@@ -325,7 +321,7 @@ describe.skip('Complex', () => {
       .to.have.lengthOf(3)
       .and.include.members(alias([3, 4, 5]))
     expect(w.items[2]).to.have.lengthOf(0)
-    await w.renderSetProps(3, {
+    await w.renderSetProps(2, {
       color0: undefined,
       color1: { $in: ['red', 'blue'] },
       hasCar: true

@@ -10,15 +10,12 @@ export default () =>
 
     render () {
       this.renderCount++
-      let { get, at, atMap } = this.model
-      let items = get('items')
-      let names
+      let { items = [] } = this.data
       // Handle situation when subscribing to one doc instead of query
-      if (_.isArray(items)) {
-        names = atMap('items', $i => $i.get('name')).join(',')
-      } else {
-        names = get('items.name')
-      }
+      console.log('> before', this.data)
+      if (!_.isArray(items)) items = [items]
+      console.log('> after', this.data)
+      let names = items.map(i => i.name).join(',')
       if (typeof DEBUG !== 'undefined') {
         console.log(`RENDER ${this.renderCount}:`, names)
       }

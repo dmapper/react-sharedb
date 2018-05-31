@@ -6,11 +6,12 @@ import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
+import { observe, unobserve, observable } from '@nx-js/observer-util'
 
 const DEFAULT_COLLECTION = '$components'
-const RENDER_COMPUTATION_NAME = '__renderComputation'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
 const HELPER_METHODS_TO_BIND = ['get', 'at', 'atMap', 'atForEach']
+const DUMMY_STATE = {}
 
 export default function subscribe (...fns) {
   return function derorateTarget (Component) {
@@ -35,6 +36,9 @@ const subscribeLocalMixin = (
 ) => ({
   componentWillMount (...args) {
     this.model = generateScopedModel()
+    this.model.set('', {}) // Initially set empty object for observable
+    this.data = observable(this.model.get())
+    // this.model.set('', this.data) // Maybe this is needed
     bindMethods(this.model, HELPER_METHODS_TO_BIND)
     this.autorunRender()
     this.autorunSubscriptions()
@@ -55,8 +59,7 @@ const subscribeLocalMixin = (
     if (oldComponentWillUnmount) oldComponentWillUnmount.call(this, ...args)
     this.unmounted = true
     // Stop render computation
-    this[RENDER_COMPUTATION_NAME] && this[RENDER_COMPUTATION_NAME].stop()
-    delete this[RENDER_COMPUTATION_NAME]
+    unobserve(this.render)
     // Stop all subscription params computations
     for (let index = 0; index < this.__dataFns.length; index++) {
       let computationName = getComputationName(index)
@@ -74,6 +77,7 @@ const subscribeLocalMixin = (
   autorunRender () {
     let oldRender = this.render
     let loadingRenderWrapper = () => {
+      this.__rendered = true
       if (this.__loaded) {
         return oldRender.call(this)
       } else {
@@ -88,15 +92,10 @@ const subscribeLocalMixin = (
         }
       }
     }
-    this.render = () => {
-      this.__rendered = true
-      return Tracker.once(
-        RENDER_COMPUTATION_NAME,
-        this,
-        loadingRenderWrapper,
-        this.forceUpdate
-      )
-    }
+    this.render = observe(loadingRenderWrapper, {
+      scheduler: () => this.setState(DUMMY_STATE),
+      lazy: true
+    })
   },
   // TODO: When we change subscription params quickly, we are going to
   //       receive a race condition when earlier subscription result might
@@ -124,6 +123,8 @@ const subscribeLocalMixin = (
             if (subscriptions[key]) {
               await this.__initItem(key, subscriptions[key])
             }
+            console.log('>> update subscription')
+            // this.setState(DUMMY_STATE)
           }
         }
       }
@@ -136,7 +137,7 @@ const subscribeLocalMixin = (
     // (for example if we are only subscribing to local data).
     // In this case we don't need to manually trigger forceUpdate
     // since render will execute on its own later in the lifecycle.
-    if (this.__rendered) this.forceUpdate()
+    if (this.__rendered) this.setState(DUMMY_STATE)
   },
   async __initItem (key, params) {
     let constructor = getItemConstructor(params)

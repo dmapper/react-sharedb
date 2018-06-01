@@ -1,6 +1,5 @@
 import React from 'react'
 import _ from 'lodash'
-import { isObservable } from '@nx-js/observer-util'
 
 export default () =>
   class Simple extends React.Component {

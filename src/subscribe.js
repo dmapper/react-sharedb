@@ -43,8 +43,6 @@ const subscribeLocalMixin = (
     this.model = generateScopedModel()
     this.model.set('', observable({})) // Initially set empty object for observable
     this.scope = this.model.get()
-    console.log('> is observable', isObservable(this.model.get()))
-    console.log('> is observable hello', isObservable(this.model.get('hello')))
     bindMethods(this.model, HELPER_METHODS_TO_BIND)
     this.autorunRender()
     this.autorunSubscriptions()
@@ -98,7 +96,10 @@ const subscribeLocalMixin = (
         }
       }
     }
-    let fn = _.debounce(() => this.setState(DUMMY_STATE))
+    let fn = _.debounce(() => {
+      if (this.unmounted) return
+      this.setState(DUMMY_STATE)
+    })
     this.render = observe(loadingRenderWrapper, {
       scheduler: fn,
       lazy: true

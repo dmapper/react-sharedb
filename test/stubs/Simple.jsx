@@ -10,6 +10,7 @@ export default () =>
     }
 
     render () {
+      // console.log('model', this.model.get())
       this.renderCount++
       let { items = [] } = this.scope
       // Handle situation when subscribing to one doc instead of query

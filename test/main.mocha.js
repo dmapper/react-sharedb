@@ -5,6 +5,7 @@ import { mount } from 'enzyme'
 import { createWaitForElement } from 'enzyme-wait'
 import _ from 'lodash'
 import './_server'
+import waitForExpect from 'wait-for-expect'
 
 // import Simple from './stubs/Simple'
 
@@ -123,7 +124,7 @@ async function renderSetProps (w, count, props) {
   w.setProps(props)
   let selector = `.RENDER-${currentRender + count}`
   console.log('wait for:', selector)
-  await w.waitFor(selector)
+  // await w.waitFor(selector)
 }
 
 async function nextRender (w, count = 1) {
@@ -298,52 +299,63 @@ describe('Complex', () => {
       .and.include.members(alias([1, 2]))
     expect(w.items[2]).to.have.lengthOf(0)
     // 4 renders should happen: for props change and each item's setState
-    await w.renderSetProps(3, {
+
+    await w.renderSetProps({
       color0: 'blue',
       color1: 'red',
       hasCar: true
     })
-    expect(w.items[0])
-      .to.have.lengthOf(2)
-      .and.include.members(alias([1, 2]))
-    expect(w.items[1])
-      .to.have.lengthOf(3)
-      .and.include.members(alias([3, 4, 5]))
-    expect(w.items[2])
-      .to.have.lengthOf(1)
-      .and.include.members(alias([1]))
+
+    await waitForExpect(() => {
+      expect(w.items[0])
+        .to.have.lengthOf(2)
+        .and.include.members(alias([1, 2]))
+      expect(w.items[1])
+        .to.have.lengthOf(3)
+        .and.include.members(alias([3, 4, 5]))
+      expect(w.items[2])
+        .to.have.lengthOf(1)
+        .and.include.members(alias([1]))
+    })
+
     // 1 render should happen: for props and removeItemData -- sync
     await w.renderSetProps({ hasCar: false })
-    expect(w.items[0])
-      .to.have.lengthOf(2)
-      .and.include.members(alias([1, 2]))
-    expect(w.items[1])
-      .to.have.lengthOf(3)
-      .and.include.members(alias([3, 4, 5]))
-    expect(w.items[2]).to.have.lengthOf(0)
-    await w.renderSetProps(2, {
+    await waitForExpect(() => {
+      expect(w.items[0])
+        .to.have.lengthOf(2)
+        .and.include.members(alias([1, 2]))
+      expect(w.items[1])
+        .to.have.lengthOf(3)
+        .and.include.members(alias([3, 4, 5]))
+      expect(w.items[2]).to.have.lengthOf(0)
+    })
+    await w.renderSetProps({
       color0: undefined,
       color1: { $in: ['red', 'blue'] },
       hasCar: true
     })
-    expect(w.items[0]).to.have.lengthOf(0)
-    expect(w.items[1])
-      .to.have.lengthOf(5)
-      .and.include.members(alias([1, 2, 3, 4, 5]))
-    expect(w.items[2])
-      .to.have.lengthOf(1)
-      .and.include.members(alias([1]))
-    await w.renderSetProps(2, {
+    await waitForExpect(() => {
+      expect(w.items[0]).to.have.lengthOf(0)
+      expect(w.items[1])
+        .to.have.lengthOf(5)
+        .and.include.members(alias([1, 2, 3, 4, 5]))
+      expect(w.items[2])
+        .to.have.lengthOf(1)
+        .and.include.members(alias([1]))
+    })
+    await w.renderSetProps({
       color0: 'red',
       hasCar: false
     })
-    expect(w.items[0])
-      .to.have.lengthOf(3)
-      .and.include.members(alias([3, 4, 5]))
-    expect(w.items[1])
-      .to.have.lengthOf(5)
-      .and.include.members(alias([1, 2, 3, 4, 5]))
-    expect(w.items[2]).to.have.lengthOf(0)
+    await waitForExpect(() => {
+      expect(w.items[0])
+        .to.have.lengthOf(3)
+        .and.include.members(alias([3, 4, 5]))
+      expect(w.items[1])
+        .to.have.lengthOf(5)
+        .and.include.members(alias([1, 2, 3, 4, 5]))
+      expect(w.items[2]).to.have.lengthOf(0)
+    })
   })
 })
 

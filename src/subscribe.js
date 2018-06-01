@@ -98,8 +98,9 @@ const subscribeLocalMixin = (
         }
       }
     }
+    let fn = _.debounce(() => this.setState(DUMMY_STATE))
     this.render = observe(loadingRenderWrapper, {
-      scheduler: () => this.setState(DUMMY_STATE),
+      scheduler: fn,
       lazy: true
     })
   },

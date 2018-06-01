@@ -11,7 +11,7 @@ export default () =>
 
     render () {
       this.renderCount++
-      let { items = [] } = this.data
+      let { items = [] } = this.scope
       // Handle situation when subscribing to one doc instead of query
       if (!_.isArray(items)) items = [items]
       let names = items

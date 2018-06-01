@@ -17,7 +17,7 @@ export default () =>
       }
       let itemEls = []
       for (let i = 0; i < ITEMS_AMOUNT; i++) {
-        let items = this.data[`items${i}`]
+        let items = this.scope[`items${i}`]
         if (!_.isArray(items)) items = [items]
         let names = items.map(i => i.name).join(',')
         if (typeof DEBUG !== 'undefined') console.log(`  ${i}: ${names}`)

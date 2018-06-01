@@ -300,7 +300,7 @@ describe('Complex', () => {
     expect(w.items[2]).to.have.lengthOf(0)
     // 4 renders should happen: for props change and each item's setState
 
-    await w.renderSetProps({
+    await w.setProps({
       color0: 'blue',
       color1: 'red',
       hasCar: true
@@ -319,7 +319,7 @@ describe('Complex', () => {
     })
 
     // 1 render should happen: for props and removeItemData -- sync
-    await w.renderSetProps({ hasCar: false })
+    await w.setProps({ hasCar: false })
     await waitForExpect(() => {
       expect(w.items[0])
         .to.have.lengthOf(2)
@@ -329,7 +329,7 @@ describe('Complex', () => {
         .and.include.members(alias([3, 4, 5]))
       expect(w.items[2]).to.have.lengthOf(0)
     })
-    await w.renderSetProps({
+    await w.setProps({
       color0: undefined,
       color1: { $in: ['red', 'blue'] },
       hasCar: true
@@ -343,7 +343,7 @@ describe('Complex', () => {
         .to.have.lengthOf(1)
         .and.include.members(alias([1]))
     })
-    await w.renderSetProps({
+    await w.setProps({
       color0: 'red',
       hasCar: false
     })

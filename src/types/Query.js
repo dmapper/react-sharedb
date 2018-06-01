@@ -81,6 +81,10 @@ export default class Query extends Base {
   _unsubscribe () {
     if (!this.subscription) return
     model.unsubscribe(this.subscription)
+    // setTimeout(() => {
+    //   console.log('>> unsubscribe')
+    //   model.unsubscribe(subscription)
+    // }, 3000)
     delete this.subscription
   }
 

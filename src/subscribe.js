@@ -122,17 +122,17 @@ const subscribeLocalMixin = (
         subscriptions = Tracker.once(computationName, this, subscribeFn, dataFn)
         let keys = _.union(_.keys(prevSubscriptions), _.keys(subscriptions))
         keys = _.uniq(keys)
+        let promises = []
         for (let key of keys) {
           if (!_.isEqual(subscriptions[key], prevSubscriptions[key])) {
-            // If the subscription was there before but now
-            // it's gone, we should remove the item's data
-            if (!subscriptions[key]) this.__removeItemRefs(key)
-            if (prevSubscriptions[key]) this.__destroyItem(key)
             if (subscriptions[key]) {
-              await this.__initItem(key, subscriptions[key])
+              promises.push(await this.__initItem(key, subscriptions[key]))
+            } else {
+              this.__destroyItem(key)
             }
           }
         }
+        await Promise.all(promises)
       }
       this.__dataFns.push(dataFn)
       await dataFn(this.props)
@@ -145,15 +145,18 @@ const subscribeLocalMixin = (
     // since render will execute on its own later in the lifecycle.
     if (this.__rendered) this.setState(DUMMY_STATE)
   },
+  // TODO: Maybe implement queueing. Research if race condition is present.
   async __initItem (key, params) {
     let constructor = getItemConstructor(params)
     let item = new constructor(this.model, key, params)
     await item.init()
     if (this.unmounted) return item.destroy()
+    if (this.items[key]) this.__destroyItem(key)
     item.refModel()
     this.items[key] = item
   },
   __destroyItem (key) {
+    if (!this.items[key]) return
     this.items[key].unrefModel()
     this.items[key].destroy()
     delete this.items[key]

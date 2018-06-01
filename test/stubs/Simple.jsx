@@ -21,6 +21,7 @@ export default () =>
         .join(',')
       if (typeof DEBUG !== 'undefined') {
         console.log(`RENDER ${this.renderCount}:`, names)
+        console.log('  props:', this.props)
       }
       return <div className={`Simple RENDER-${this.renderCount}`}>{names}</div>
     }

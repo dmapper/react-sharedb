@@ -1,3 +1,4 @@
+import './initGlobalObservables'
 import './ModelFP'
 import './TrackerPlugin'
 export { default as model } from './model'

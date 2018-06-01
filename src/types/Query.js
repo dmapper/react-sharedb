@@ -1,5 +1,7 @@
 import model from '../model'
 import Base from './Base'
+import { observable } from '@nx-js/observer-util'
+import { observablePath } from '../util'
 
 const MAX_LISTENERS = 100
 
@@ -9,6 +11,7 @@ export default class Query extends Base {
     let [collection, query] = this.params
     this.collection = collection
     this.query = query
+    this.listeners = []
   }
 
   async init () {
@@ -18,6 +21,7 @@ export default class Query extends Base {
   refModel () {
     let { key } = this
     this.subscription.ref(this.model.at(key))
+    observablePath(this.model.path(key))
     this.subscription.refIds(this.model.at(getIdsName(key)))
   }
 
@@ -32,10 +36,46 @@ export default class Query extends Base {
     this.subscription = model.query(collection, query)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
+        // observe ids and extra
+        let path = `$queries.${this.subscription.hash}`
+        observablePath(path)
+
+        // observe initial docs
+        let docIds = this.subscription.getIds()
+        for (let docId of docIds) {
+          let shareDoc = model.connection.get(collection, docId)
+          shareDoc.data = observable(shareDoc.data)
+        }
+        // Increase the listeners cap
+        this.subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
+
+        // [insert]
+        let insertFn = shareDocs => {
+          // observe new docs
+          let ids = getShareResultsIds(shareDocs)
+          ids.forEach(docId => {
+            let shareDoc = model.connection.get(collection, docId)
+            shareDoc.data = observable(shareDoc.data)
+          })
+        }
+        this.subscription.shareQuery.on('insert', insertFn)
+        this.listeners.push({
+          ee: this.subscription.shareQuery,
+          eventName: 'insert',
+          fn: insertFn
+        })
         if (err) return reject(err)
         resolve()
       })
     })
+  }
+
+  _clearListeners () {
+    // remove query listeners
+    for (let listener of this.listeners) {
+      listener.ee.removeListener(listener.eventName, listener.fn)
+    }
+    delete this.listeners
   }
 
   _unsubscribe () {
@@ -46,6 +86,7 @@ export default class Query extends Base {
 
   destroy () {
     try {
+      this._clearListeners()
       // this.unrefModel() // TODO: Maybe enable unref in future
       // TODO: Test what happens when trying to unsubscribe from not yet subscribed
       this._unsubscribe()
@@ -58,4 +99,13 @@ export default class Query extends Base {
 
 export function getIdsName (plural) {
   return plural.replace(/s$/i, '') + 'Ids'
+}
+
+export function getShareResultsIds (results) {
+  let ids = []
+  for (let i = 0; i < results.length; i++) {
+    let shareDoc = results[i]
+    ids.push(shareDoc.id)
+  }
+  return ids
 }

@@ -1,5 +1,6 @@
 import model from '../model'
 import Base from './Base'
+import { observablePath } from '../util'
 
 export default class Local extends Base {
   constructor (...args) {
@@ -9,6 +10,7 @@ export default class Local extends Base {
 
   refModel () {
     let { key } = this
+    observablePath(this.path)
     this.model.ref(key, model.scope(this.path))
   }
 

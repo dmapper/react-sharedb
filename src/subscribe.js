@@ -6,7 +6,12 @@ import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
-import { observe, unobserve, observable } from '@nx-js/observer-util'
+import {
+  observe,
+  unobserve,
+  observable,
+  isObservable
+} from '@nx-js/observer-util'
 
 const DEFAULT_COLLECTION = '$components'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
@@ -36,9 +41,9 @@ const subscribeLocalMixin = (
 ) => ({
   componentWillMount (...args) {
     this.model = generateScopedModel()
-    this.model.set('', {}) // Initially set empty object for observable
-    this.data = observable(this.model.get())
-    // this.model.set('', this.data) // Maybe this is needed
+    this.model.set('', observable({})) // Initially set empty object for observable
+    console.log('> is observable', isObservable(this.model.get()))
+    console.log('> is observable hello', isObservable(this.model.get('hello')))
     bindMethods(this.model, HELPER_METHODS_TO_BIND)
     this.autorunRender()
     this.autorunSubscriptions()
@@ -123,8 +128,6 @@ const subscribeLocalMixin = (
             if (subscriptions[key]) {
               await this.__initItem(key, subscriptions[key])
             }
-            console.log('>> update subscription')
-            // this.setState(DUMMY_STATE)
           }
         }
       }

@@ -177,7 +177,7 @@ describe('Docs', () => {
       .and.include(alias(3))
   })
 
-  it('dynamic data update', async () => {
+  it.only('dynamic data update', async () => {
     w = await initSimple(() => ({ items: ['users', alias(1)] }))
     expect(w.items)
       .to.have.lengthOf(1)

@@ -1,5 +1,6 @@
 import model from '../model'
 import Base from './Base'
+import { observable } from '@nx-js/observer-util'
 
 export default class Doc extends Base {
   constructor (...args) {
@@ -28,6 +29,8 @@ export default class Doc extends Base {
     this.subscription = model.scope(`${collection}.${docId}`)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
+        let shareDoc = model.connection.get(collection, docId)
+        shareDoc.data = observable(shareDoc.data)
         if (err) return reject(err)
         resolve()
       })

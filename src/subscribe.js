@@ -42,6 +42,7 @@ const subscribeLocalMixin = (
   componentWillMount (...args) {
     this.model = generateScopedModel()
     this.model.set('', observable({})) // Initially set empty object for observable
+    this.data = this.model.get()
     console.log('> is observable', isObservable(this.model.get()))
     console.log('> is observable hello', isObservable(this.model.get('hello')))
     bindMethods(this.model, HELPER_METHODS_TO_BIND)

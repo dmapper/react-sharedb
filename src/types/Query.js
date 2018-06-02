@@ -36,6 +36,7 @@ export default class Query extends Base {
     this.subscription = model.query(collection, query)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
+        if (err) return reject(err)
         // observe ids and extra
         let path = `$queries.${this.subscription.hash}`
         observablePath(path)
@@ -64,7 +65,6 @@ export default class Query extends Base {
           eventName: 'insert',
           fn: insertFn
         })
-        if (err) return reject(err)
         resolve()
       })
     })

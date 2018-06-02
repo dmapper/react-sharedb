@@ -8,6 +8,7 @@ export default class Doc extends Base {
     let [collection, docId] = this.params
     this.collection = collection
     this.docId = docId
+    this.listeners = []
   }
 
   async init () {
@@ -29,12 +30,34 @@ export default class Doc extends Base {
     this.subscription = model.scope(`${collection}.${docId}`)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
+        if (err) return reject(err)
         let shareDoc = model.connection.get(collection, docId)
         shareDoc.data = observable(shareDoc.data)
-        if (err) return reject(err)
+
+        // Listen for doc creation, intercept it and make observable
+        let createFn = () => {
+          let shareDoc = model.connection.get(collection, docId)
+          shareDoc.data = observable(shareDoc.data)
+        }
+        // Add listener to the top of the queue, since we want
+        // to modify shareDoc.data before racer gets to it
+        shareDoc.prependListener('create', createFn)
+        this.listeners.push({
+          ee: this.subscription.shareQuery,
+          eventName: 'create',
+          fn: createFn
+        })
         resolve()
       })
     })
+  }
+
+  _clearListeners () {
+    // remove query listeners
+    for (let listener of this.listeners) {
+      listener.ee.removeListener(listener.eventName, listener.fn)
+    }
+    delete this.listeners
   }
 
   _unsubscribe () {
@@ -45,6 +68,7 @@ export default class Doc extends Base {
 
   destroy () {
     try {
+      this._clearListeners()
       // this.unrefModel() // TODO: Maybe enable unref in future
       // TODO: Test what happens when trying to unsubscribe from not yet subscribed
       this._unsubscribe()

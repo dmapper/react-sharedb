@@ -1,4 +1,4 @@
-global.DEBUG = true
+// global.DEBUG = true
 import React from 'react'
 import { expect } from 'chai'
 import { mount } from 'enzyme'
@@ -123,7 +123,7 @@ async function renderSetProps (w, count, props) {
   // KEEP THIS IN MIND when figuring out how many renders to wait.
   w.setProps(props)
   let selector = `.RENDER-${currentRender + count}`
-  console.log('wait for:', selector)
+  typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
   // await w.waitFor(selector)
 }
 
@@ -133,7 +133,7 @@ async function nextRender (w, count = 1) {
   currentRender = ~~currentRender
   // console.log('>> current', currentRender)
   let selector = `.RENDER-${currentRender + count}`
-  console.log('wait for:', selector)
+  typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
   await w.waitFor(selector)
 }
 
@@ -382,5 +382,50 @@ describe('Local', () => {
       .to.have.lengthOf(1)
       .and.include(alias(3))
     model.del('_page.document')
+  })
+})
+
+describe('Edge cases', () => {
+  it('initially null document. Then update to create it.', async () => {
+    let userId = alias(777)
+    w = await initSimple(() => ({ items: ['users', userId] }))
+    expect(w.items).to.have.lengthOf(0)
+    serverModel.add(`users`, {
+      id: userId,
+      name: userId
+    })
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(userId)
+    serverModel.set(`users.${userId}.name`, 'Abrakadabra')
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('Abrakadabra')
+    serverModel.set(`users.${userId}.name`, 'Blablabla')
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('Blablabla')
+    serverModel.del(`users.${userId}`)
+    await w.nextRender()
+    expect(w.items).to.have.lengthOf(0)
+    serverModel.add(`users`, {
+      id: userId,
+      name: userId
+    })
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(userId)
+    serverModel.set(`users.${userId}.name`, 'Abrakadabra')
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('Abrakadabra')
+    serverModel.del(`users.${userId}`)
+    await w.nextRender()
+    w.unmount()
   })
 })

@@ -41,6 +41,9 @@ const subscribeLocalMixin = (
 ) => ({
   componentWillMount (...args) {
     this.model = generateScopedModel()
+    // also alias scoped model as $scope to be consistent
+    // with the ${key} models for subscription items
+    this.$scope = this.model
     this.model.set('', observable({})) // Initially set empty object for observable
     this.scope = this.model.get()
     bindMethods(this.model, HELPER_METHODS_TO_BIND)
@@ -76,7 +79,8 @@ const subscribeLocalMixin = (
       this.__destroyItem(key, true)
     }
     this.model.destroy()
-    delete this.model
+    delete this.$scope // delete model alias
+    delete this.model // delete the actual model
   },
   autorunRender () {
     let oldRender = this.render

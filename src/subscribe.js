@@ -72,8 +72,8 @@ const subscribeLocalMixin = (
     }
     delete this.__dataFns
     // Destroy all subscription items
-    for (let key in this.items) {
-      this.__destroyItem(key)
+    for (let key in this.__items) {
+      this.__destroyItem(key, true)
     }
     this.model.destroy()
     delete this.model
@@ -110,7 +110,7 @@ const subscribeLocalMixin = (
   //       take longer to process compared to the same newer subscription.
   //       Implement Queue.
   async autorunSubscriptions () {
-    this.items = {}
+    this.__items = {}
     this.__dataFns = []
     for (let index = 0; index < fns.length; index++) {
       let fn = fns[index]
@@ -128,7 +128,7 @@ const subscribeLocalMixin = (
             if (subscriptions[key]) {
               promises.push(await this.__initItem(key, subscriptions[key]))
             } else {
-              this.__destroyItem(key)
+              this.__destroyItem(key, true)
             }
           }
         }
@@ -151,18 +151,23 @@ const subscribeLocalMixin = (
     let item = new constructor(this.model, key, params)
     await item.init()
     if (this.unmounted) return item.destroy()
-    if (this.items[key]) this.__destroyItem(key)
+    if (this.__items[key]) this.__destroyItem(key)
+    // Expose scoped model under the same name with prepended $
+    let keyModelName = getScopedModelName(key)
+    if (!this[keyModelName]) this[keyModelName] = this.model.at(key)
     item.refModel()
-    this.items[key] = item
+    this.__items[key] = item
   },
-  __destroyItem (key) {
-    if (!this.items[key]) return
-    this.items[key].unrefModel()
-    this.items[key].destroy()
-    delete this.items[key]
+  __destroyItem (key, terminate) {
+    if (!this.__items[key]) return console.error('Trying to destroy', key)
+    this.__items[key].unrefModel()
+    let keyModelName = getScopedModelName(key)
+    if (terminate) delete this[keyModelName]
+    this.__items[key].destroy()
+    delete this.__items[key]
   },
   __removeItemRefs (key) {
-    this.items[key].unrefModel()
+    this.__items[key].unrefModel()
   }
 })
 
@@ -191,4 +196,8 @@ function bindMethods (object, methodsToBind) {
   for (let method of methodsToBind) {
     object[method] = object[method].bind(object)
   }
+}
+
+function getScopedModelName (key) {
+  return `$${key}`
 }

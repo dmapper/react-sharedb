@@ -1,6 +1,6 @@
 {
   "name": "react-sharedb",
-  "version": "4.0.0-alpha.3",
+  "version": "4.0.0-alpha.4",
   "description": "",
   "main": "lib/index.js",
   "scripts": {

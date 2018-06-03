@@ -50,6 +50,12 @@ const subscribeLocalMixin = (
     this.autorunRender()
     this.autorunSubscriptions()
     if (oldComponentWillMount) oldComponentWillMount.call(this, ...args)
+    this.__ranComponentWillMount = true
+    // run componentDidSubscribe custom lifecycle hook here if subscriptions
+    // finished synchronously
+    if (this.__loaded && this.componentDidSubscribe) {
+      this.componentDidSubscribe()
+    }
   },
   // TODO: Implement queueing
   async componentWillReceiveProps (...args) {
@@ -143,6 +149,11 @@ const subscribeLocalMixin = (
       if (this.unmounted) return
     }
     this.__loaded = true
+    // run componentDidSubscribe custom lifecycle hook here if subscriptions
+    // finished Asynchronously (after componentWillMount already executed)
+    if (this.__ranComponentWillMount && this.componentDidSubscribe) {
+      this.componentDidSubscribe()
+    }
     // Sometimes all the subscriptions might go through synchronously
     // (for example if we are only subscribing to local data).
     // In this case we don't need to manually trigger forceUpdate

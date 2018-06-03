@@ -41,7 +41,7 @@ export default class Doc extends Base {
         }
         // Add listener to the top of the queue, since we want
         // to modify shareDoc.data before racer gets to it
-        shareDoc.prependListener('create', createFn)
+        prependListener(shareDoc, 'create', createFn)
         this.listeners.push({
           ee: this.subscription.shareQuery,
           eventName: 'create',
@@ -77,4 +77,18 @@ export default class Doc extends Base {
     delete this.collection
     super.destroy()
   }
+}
+
+// Shim for EventEmitter.prependListener.
+// Right now this is required to support older build environments
+// like react-native and webpack v1.
+// TODO: Replace this with EventEmitter.prependListener in future
+function prependListener (emitter, event, listener) {
+  let old = emitter.listeners(event) || []
+  emitter.removeAllListeners(event)
+  let rv = emitter.on(event, listener)
+  for (let i = 0, len = old.length; i < len; i++) {
+    emitter.on(event, old[i])
+  }
+  return rv
 }

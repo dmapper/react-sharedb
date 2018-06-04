@@ -1,4 +1,4 @@
-// global.DEBUG = true
+global.DEBUG = process.env.DEBUG || process.env.debug
 import React from 'react'
 import { expect } from 'chai'
 import { mount } from 'enzyme'

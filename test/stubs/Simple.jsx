@@ -22,7 +22,10 @@ export default () =>
         .join(',')
       if (typeof DEBUG !== 'undefined') {
         console.log(`RENDER ${this.renderCount}:`, names)
-        console.log('  props:', this.props)
+        console.log(
+          '  props:',
+          _.pickBy(this.props, (value, key) => key && /^[^$]/.test(key))
+        )
       }
       return <div className={`Simple RENDER-${this.renderCount}`}>{names}</div>
     }

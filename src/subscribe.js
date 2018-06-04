@@ -37,7 +37,11 @@ const getAutorunComponent = (Component, isStateless) =>
     constructor (props, ...args) {
       super(props, ...args)
 
-      this.scope = props.__scope
+      // TODO: Remove this.scope alias.
+      //       Since ComponentWillMount became deprecated
+      //       we should not use this.scope alias anymore
+      //       and do all the initialization in the constructor
+      this.scope = props.scope
 
       let fn = _.debounce(() => {
         if (this.unmounted) return
@@ -119,7 +123,7 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       if (this.loaded) {
         return React.createElement(DecoratedComponent, {
           ...this.props,
-          __scope: this.scope,
+          scope: this.scope,
           ...this.models
         })
       } else {

@@ -1,7 +1,6 @@
 import _ from 'lodash'
 import React from 'react'
 import model from './model'
-import Tracker from 'trackerjs'
 import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
@@ -76,8 +75,8 @@ const subscribeLocalMixin = (
     // Stop all subscription params computations
     for (let index = 0; index < this.__dataFns.length; index++) {
       let computationName = getComputationName(index)
-      this[computationName] && this[computationName].stop()
-      delete this[computationName]
+      this.__comps[computationName] && unobserve(this.__comps[computationName])
+      delete this.__comps[computationName]
     }
     delete this.__dataFns
     // Destroy all subscription items
@@ -121,6 +120,7 @@ const subscribeLocalMixin = (
   //       Implement Queue.
   async autorunSubscriptions () {
     this.__items = {}
+    this.__comps = {}
     this.__dataFns = []
     for (let index = 0; index < fns.length; index++) {
       let fn = fns[index]
@@ -128,8 +128,14 @@ const subscribeLocalMixin = (
       let dataFn = async props => {
         let prevSubscriptions = subscriptions || {}
         let computationName = getComputationName(index)
-        let subscribeFn = () => fn.call(this, props)
-        subscriptions = Tracker.once(computationName, this, subscribeFn, dataFn)
+        let subscribeFn = () => {
+          subscriptions = fn.call(this, props)
+        }
+        const computation = observe(subscribeFn, {
+          scheduler: dataFn
+        })
+        this.__comps[computationName] = computation
+
         let keys = _.union(_.keys(prevSubscriptions), _.keys(subscriptions))
         keys = _.uniq(keys)
         let promises = []

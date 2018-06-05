@@ -114,7 +114,10 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
     componentWillUnmount () {
       this.unmounted = true
       // Stop render computation
-      unobserve(this.render)
+      if (this.decoratedComponent) {
+        unobserve(this.decoratedComponent.render)
+        delete this.decoratedComponent
+      }
       // Stop all subscription params computations
       for (let index = 0; index < this.dataFns.length; index++) {
         let computationName = getComputationName(index)
@@ -139,7 +142,11 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
         return React.createElement(DecoratedComponent, {
           ...this.props,
           scope: this.scope,
-          ...this.models
+          ...this.models,
+          ref: (...args) => {
+            this.decoratedComponent = args[0]
+            if (this.props.innerRef) this.props.innerRef(...args)
+          }
         })
       } else {
         // When in React Native env, don't use any loading spinner

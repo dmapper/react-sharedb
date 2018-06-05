@@ -43,7 +43,7 @@ export default class Doc extends Base {
         // to modify shareDoc.data before racer gets to it
         prependListener(shareDoc, 'create', createFn)
         this.listeners.push({
-          ee: this.subscription.shareQuery,
+          ee: shareDoc,
           eventName: 'create',
           fn: createFn
         })

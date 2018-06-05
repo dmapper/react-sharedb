@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import racer from 'racer'
 import React from 'react'
 import hoistStatics from 'hoist-non-react-statics'
 import model from './model'
@@ -6,6 +7,7 @@ import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
+import Batching from './Batching'
 import {
   observe,
   unobserve,
@@ -17,6 +19,7 @@ const DEFAULT_COLLECTION = '$components'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
 const HELPER_METHODS_TO_BIND = ['get', 'at', 'atMap', 'atForEach']
 const DUMMY_STATE = {}
+const batching = new Batching()
 
 export default function subscribe (...fns) {
   return function decorateTarget (Component) {
@@ -43,15 +46,26 @@ const getAutorunComponent = (Component, isStateless) =>
       //       and do all the initialization in the constructor
       this.scope = props.scope
 
-      let fn = _.debounce(() => {
+      // let fn = _.debounce(() => {
+      //   if (this.unmounted) return
+      //   this.setState(DUMMY_STATE)
+      // })
+
+      let updateFn = () => {
         if (this.unmounted) return
         this.setState(DUMMY_STATE)
-      })
+      }
+      this.update = () => batching.add(updateFn)
+
+      // let fn = () => batchedUpdate(() => {
+      //   if (this.unmounted) return
+      //   this.setState(DUMMY_STATE)
+      // })
 
       // create a reactive render for the component
       // run a dummy setState to schedule a new reactive render, avoid forceUpdate
       this.render = observe(this.render, {
-        scheduler: fn,
+        scheduler: this.update,
         lazy: true
       })
     }
@@ -194,26 +208,30 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       let item = new constructor(this.model, key, params)
       await item.init()
       if (this.unmounted) return item.destroy()
-      if (this.items[key]) this.destroyItem(key)
-      item.refModel()
-      this.items[key] = item
-      // Expose scoped model under the same name with prepended $
-      let keyModelName = getScopedModelName(key)
-      if (!this.models[keyModelName]) {
-        this.models[keyModelName] = this.model.at(key)
-        this.doForceUpdate = true
-      }
+      batching.batch(() => {
+        if (this.items[key]) this.destroyItem(key)
+        item.refModel()
+        this.items[key] = item
+        // Expose scoped model under the same name with prepended $
+        let keyModelName = getScopedModelName(key)
+        if (!this.models[keyModelName]) {
+          this.models[keyModelName] = this.model.at(key)
+          this.doForceUpdate = true
+        }
+      })
     }
 
     destroyItem (key, terminate) {
       if (!this.items[key]) return console.error('Trying to destroy', key)
-      this.items[key].unrefModel()
-      let keyModelName = getScopedModelName(key)
-      if (terminate) {
-        delete this[keyModelName]
-        this.doForceUpdate = true
-      }
-      this.items[key].destroy()
+      batching.batch(() => {
+        this.items[key].unrefModel()
+        let keyModelName = getScopedModelName(key)
+        if (terminate) {
+          delete this[keyModelName]
+          this.doForceUpdate = true
+        }
+        this.items[key].destroy()
+      })
       delete this.items[key]
     }
   }
@@ -247,4 +265,13 @@ function bindMethods (object, methodsToBind) {
 
 function getScopedModelName (key) {
   return `$${key}`
+}
+
+const oldMutate = racer.Model.prototype._mutate
+racer.Model.prototype._mutate = function () {
+  let value
+  batching.batch(() => {
+    value = oldMutate.apply(this, arguments)
+  })
+  return value
 }

@@ -77,11 +77,10 @@ const getAutorunComponent = (Component, isStateless) =>
 
     componentWillUnmount () {
       this.unmounted = true
-      // call user defined componentWillUnmount
-      if (super.componentWillUnmount) super.componentWillUnmount()
-
       // stop autorun
       unobserve(this.render)
+      // call user defined componentWillUnmount
+      if (super.componentWillUnmount) super.componentWillUnmount()
     }
   }
 
@@ -113,11 +112,13 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
 
     componentWillUnmount () {
       this.unmounted = true
+
       // Stop render computation
       if (this.decoratedComponent) {
         unobserve(this.decoratedComponent.render)
         delete this.decoratedComponent
       }
+
       // Stop all subscription params computations
       for (let index = 0; index < this.dataFns.length; index++) {
         let computationName = getComputationName(index)
@@ -125,14 +126,20 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
         delete this.comps[computationName]
       }
       delete this.dataFns
+
+      // Destroy whole model before destroying items one by one.
+      // This prevents model.on() and model.start() from firing
+      // extra times
+      this.model.destroy()
+
       // Destroy all subscription items
       for (let key in this.items) {
-        this.destroyItem(key, true)
+        this.destroyItem(key, true, true)
       }
+
       delete this.models.$scope
       delete this.models
       delete this.scope
-      this.model.destroy()
       delete this.model // delete the actual model
     }
 
@@ -229,10 +236,11 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       })
     }
 
-    destroyItem (key, terminate) {
+    // TODO: Refactor to use 3 different facade methods
+    destroyItem (key, terminate, modelDestroyed) {
       if (!this.items[key]) return console.error('Trying to destroy', key)
       batching.batch(() => {
-        this.items[key].unrefModel()
+        if (!modelDestroyed) this.items[key].unrefModel()
         let keyModelName = getScopedModelName(key)
         if (terminate) {
           delete this[keyModelName]

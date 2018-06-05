@@ -38,8 +38,8 @@ async function initSimple (...args) {
       return this.getItems()
     }
   })
-  w.nextRender = function (count = 1) {
-    return nextRender(this, count)
+  w.nextRender = function (...args) {
+    return nextRender(this, ...args)
   }
   w.renderSetProps = function (count, props) {
     return renderSetProps(this, count, props)
@@ -70,8 +70,8 @@ async function initComplex (...args) {
       return this.getItems()
     }
   })
-  w.nextRender = function (count = 1) {
-    return nextRender(this, count)
+  w.nextRender = function (...args) {
+    return nextRender(this, ...args)
   }
   w.renderSetProps = function (count, props) {
     return renderSetProps(this, count, props)
@@ -127,13 +127,18 @@ async function renderSetProps (w, count, props) {
   // await w.waitFor(selector)
 }
 
-async function nextRender (w, count = 1) {
+async function nextRender (w, count = 1, fn) {
+  if (typeof count === 'function') {
+    fn = count
+    count = 1
+  }
   let currentRender = w.html().match(/RENDER-(\d+)/)[1]
   if (!currentRender) throw new Error("Component didn't render")
   currentRender = ~~currentRender
   // console.log('>> current', currentRender)
   let selector = `.RENDER-${currentRender + count}`
   typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
+  if (fn) fn()
   await w.waitFor(selector)
 }
 
@@ -423,5 +428,135 @@ describe('Edge cases', () => {
     serverModel.del(`users.${userId}`)
     await w.nextRender()
     w.unmount()
+  })
+
+  it('ref NON existent local document and ensure reactivity', async () => {
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items).to.have.lengthOf(0)
+    await w.nextRender(() => {
+      model.set('_page.document', { id: 'document', name: 'document' })
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => model.set('_page.document.name', 'first'))
+    // await new Promise(resolve => setTimeout(resolve, 1000))
+    // await w.nextRender(3, () => {})
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('first')
+    await w.nextRender(() => model.set('_page.document.name', 'second'))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('second')
+    model.del('_page.document')
+    // await w.nextRender(3, () => {})
+  })
+
+  it('ref an existing local document and ensure reactivity', async () => {
+    model.set('_page.document', { id: 'document', name: 'document' })
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => model.set('_page.document.name', 'first'))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('first')
+    await w.nextRender(() => model.set('_page.document.name', 'second'))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('second')
+    model.del('_page.document')
+  })
+
+  it('should render only when changing something which was rendered before', async () => {
+    model.set('_page.document', { id: 'document', name: 'document' })
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => {
+      model.set('_page.document.name', 'first')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('first')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'red')
+      model.set('_page.document.name', 'second')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('second')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'green')
+      model.set('_page.document.name', 'third')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
+    await w.nextRender(() => {
+      model.set('_page.document.showColor', true)
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'yellow')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
+    await w.nextRender(2, () => {
+      model.set('_page.document.color', 'orange')
+      model.set('_page.document.name', 'fourth')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('fourth')
+    await w.nextRender(() => {
+      model.del('_page.document.showColor')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('fourth')
+    await w.nextRender(2, () => {
+      model.set('_page.document.color', 'grey')
+      model.set('_page.document.name', 'fifth')
+      model.set('_page.document.color', 'black')
+      model.set('_page.document.name', 'sixth')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('sixth')
+    model.del('_page.document')
+  })
+
+  it('model.setEach() should batch changes and only render once', async () => {
+    model.set('_page.document', {
+      id: 'document',
+      name: 'document',
+      showColor: true
+    })
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'grey')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(3, () => {
+      model.setEach('_page.document', { color: 'green', name: 'first' })
+      model.setEach('_page.document', { color: 'black', name: 'second' })
+      model.setEach('_page.document', { color: 'yellow', name: 'third' })
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
+    model.del('_page.document')
   })
 })

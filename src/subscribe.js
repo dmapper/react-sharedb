@@ -8,6 +8,7 @@ import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
 import Batching from './Batching'
+import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
 import {
   observe,
   unobserve,
@@ -274,4 +275,20 @@ racer.Model.prototype._mutate = function () {
     value = oldMutate.apply(this, arguments)
   })
   return value
+}
+
+const oldSetEach = racer.Model.prototype._setEach
+racer.Model.prototype._setEach = function () {
+  let value
+  batching.batch(() => {
+    value = oldSetEach.apply(this, arguments)
+  })
+  return value
+}
+
+// Monkey patch racer's local documents to be observable
+let oldUpdateCollectionData = RacerLocalDoc.prototype._updateCollectionData
+RacerLocalDoc.prototype._updateCollectionData = function () {
+  this.data = observable(this.data)
+  return oldUpdateCollectionData.apply(this, arguments)
 }

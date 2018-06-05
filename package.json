@@ -1,5 +1,5 @@
 {
-  "name": "react-sharedb",
+  "name": "@react-sharedb/v2",
   "version": "2.0.2",
   "description": "",
   "main": "lib/index.js",

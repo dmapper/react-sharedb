@@ -1,4 +1,4 @@
-import model from '../model'
+import model from '@react-sharedb/model'
 import Base from './Base'
 
 export default class Local extends Base {

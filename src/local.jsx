@@ -1,4 +1,4 @@
-import model from './model'
+import model from '@react-sharedb/model'
 
 const DEFAULT_COLLECTION = '$components'
 

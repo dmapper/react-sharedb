@@ -1,6 +1,6 @@
 import _ from 'lodash'
 import EventEmitter from 'eventemitter3'
-import model from '../model'
+import model from '@react-sharedb/model'
 
 // Updates to the following fields are going to be ignored (props WON'T be updated)
 const IGNORE_FIELDS = ['_meta', 'updatedAt', 'updatedBy']

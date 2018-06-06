@@ -9,6 +9,7 @@ import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
 import Batching from './Batching'
 import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
+import semaphore from './semaphore'
 import {
   observe,
   unobserve,
@@ -91,7 +92,9 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       this.models = {}
       // pipe the local model into props as $scope
       this.models.$scope = this.model
+      semaphore.allowComponentSetter = true
       this.model.set('', observable({})) // Initially set empty object for observable
+      semaphore.allowComponentSetter = false
       this.scope = this.model.get()
       bindMethods(this.model, HELPER_METHODS_TO_BIND)
       this.autorunSubscriptions()
@@ -130,7 +133,9 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       // Destroy whole model before destroying items one by one.
       // This prevents model.on() and model.start() from firing
       // extra times
+      semaphore.allowComponentSetter = true
       this.model.destroy()
+      semaphore.allowComponentSetter = false
 
       // Destroy all subscription items
       for (let key in this.items) {
@@ -283,22 +288,35 @@ function getScopedModelName (key) {
   return `$${key}`
 }
 
-const oldMutate = racer.Model.prototype._mutate
-racer.Model.prototype._mutate = function () {
-  let value
-  batching.batch(() => {
-    value = oldMutate.apply(this, arguments)
-  })
-  return value
+const BATCH_SETTERS = ['_mutate', '_setEach', '_setDiff', '_setDiffDeep']
+
+for (let methodName of BATCH_SETTERS) {
+  const oldMethod = racer.Model.prototype[methodName]
+  racer.Model.prototype[methodName] = function () {
+    let value
+    batching.batch(() => {
+      value = oldMethod.apply(this, arguments)
+    })
+    return value
+  }
 }
 
-const oldSetEach = racer.Model.prototype._setEach
-racer.Model.prototype._setEach = function () {
-  let value
-  batching.batch(() => {
-    value = oldSetEach.apply(this, arguments)
-  })
-  return value
+const WARNING_SETTERS = ['_set', '_setDiff', '_setNull', '_del']
+for (let methodName of WARNING_SETTERS) {
+  const oldMethod = racer.Model.prototype[methodName]
+  racer.Model.prototype[methodName] = function (segments) {
+    if (
+      segments.length === 2 &&
+      segments[0] === DEFAULT_COLLECTION &&
+      !semaphore.allowComponentSetter
+    ) {
+      throw new Error(
+        `You can't use '${methodName.replace(/^_/, '')}' on component's ` +
+          `$scope root path. Use 'setEach' instead.`
+      )
+    }
+    return oldMethod.apply(this, arguments)
+  }
 }
 
 // Monkey patch racer's local documents to be observable

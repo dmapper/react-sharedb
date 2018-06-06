@@ -1,5 +1,6 @@
 import model from '../model'
 import Base from './Base'
+import { observablePath } from '../util'
 
 export default class Local extends Base {
   constructor (...args) {
@@ -7,37 +8,20 @@ export default class Local extends Base {
     this.path = this.params
   }
 
-  async init () {
-    let { path } = this
-    this.$model = model.at(path)
-    this._listenForUpdates()
+  refModel () {
+    let { key } = this
+    observablePath(this.path)
+    this.model.ref(key, model.scope(this.path))
   }
 
-  _listenForUpdates () {
-    let { $model } = this
-    this.listener = $model.on('all', '**', () => this.emit('update'))
-  }
-
-  _clearListeners () {
-    let { $model } = this
-    if (!$model) return
-    if (this.listener) $model.removeListener('all', this.listener)
-    delete this.$model
-  }
-
-  getData () {
-    let { $model, key } = this
-    let value = $model.get()
-    return { [`$${key}`]: $model, [key]: value }
+  unrefModel () {
+    let { key } = this
+    this.model.removeRef(key)
   }
 
   destroy () {
-    this.destroyed = true
-    this.removeAllListeners()
-    try {
-      this._clearListeners()
-    } catch (err) {}
-    delete this.params
+    // this.unrefModel() // TODO: Maybe enable unref in future
     delete this.path
+    super.destroy()
   }
 }

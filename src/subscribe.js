@@ -1,251 +1,327 @@
 import _ from 'lodash'
+import racer from 'racer'
 import React from 'react'
 import hoistStatics from 'hoist-non-react-statics'
+import model from './model'
 import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
+import Batching from './Batching'
+import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
+import semaphore from './semaphore'
+import {
+  observe,
+  unobserve,
+  observable,
+  isObservable
+} from '@nx-js/observer-util'
 
-// TODO: Explore the possibilities to optimize _.isEqual and _.clone
-// http://stackoverflow.com/q/122102
+const DEFAULT_COLLECTION = '$components'
+const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
+const HELPER_METHODS_TO_BIND = ['get', 'at', 'atMap', 'atForEach']
+const DUMMY_STATE = {}
+const batching = new Batching()
 
-// Deprecate the reactiveProps list of items.
-// Make all queries reactive by default (evaluate subscriptions getter
-// whenever props change).
-const REACTIVE_BY_DEFAULT_OVERRIDE =
-  typeof window !== 'undefined' && window.__sharedbReactiveByDefault
-const REACTIVE_BY_DEFAULT =
-  REACTIVE_BY_DEFAULT_OVERRIDE != null ? REACTIVE_BY_DEFAULT_OVERRIDE : true
-
-/**
- * ShareDB subscriptions decorator.
- * @param [reactiveProp] {...string} - DEPRECATED! names of the props which trigger resubscribe
- *    Update subscription when any of them changes.
- * @param getSubscriptions {Function} - (props, state) Retrieve initial subscriptions data
- * @returns {Function}
- * @constructor
- * @example
- * |  @subscribe('toContentIds', 'fromContentIds', (props) => {
- * |    return {
- * |      template: ['templates', props.templateId],
- * |      sections: ['sections', { instructions: true, $sort: { createdAt: -1 } }],
- * |      toTexts: ['texts', { _id: { $in: props.toContentIds } }],
- * |      fromTexts: ['texts', { _id: { $in: props.fromContentIds } }]
- * |    }
- * |  })
- * @example Extra query (counting amount of documents)
- * |  @subscribe((props) => ({
- * |    contentsCount: ['contents', {
- * |      $count: true,
- * |      sectionId: props.sectionId
- * |    }]
- * |  }))
- */
-export default function subscribe () {
-  let getSubscriptions = arguments[arguments.length - 1]
-  if (typeof getSubscriptions !== 'function') {
-    throw new Error(
-      '[@subscribe] last argument (getSubscriptions) must be a function.'
+export default function subscribe (...fns) {
+  return function decorateTarget (Component) {
+    const isStateless = !(
+      Component.prototype && Component.prototype.isReactComponent
     )
+    let AutorunComponent = getAutorunComponent(Component, isStateless)
+    let SubscriptionsContainer = getSubscriptionsContainer(
+      AutorunComponent,
+      fns
+    )
+    return hoistStatics(SubscriptionsContainer, AutorunComponent)
   }
-  let reactiveProps = Array.prototype.slice.call(
-    arguments,
-    0,
-    arguments.length - 1
-  )
-  if (reactiveProps.some(i => typeof i !== 'string')) {
-    throw new Error('[@subscribe] reactiveProps must be strings.')
+}
+
+const getAutorunComponent = (Component, isStateless) =>
+  class AutorunHOC extends (isStateless ? React.Component : Component) {
+    constructor (props, ...args) {
+      super(props, ...args)
+
+      // TODO: Remove this.scope alias.
+      //       Since ComponentWillMount became deprecated
+      //       we should not use this.scope alias anymore
+      //       and do all the initialization in the constructor
+      this.scope = props.scope
+
+      // let fn = _.debounce(() => {
+      //   if (this.unmounted) return
+      //   this.setState(DUMMY_STATE)
+      // })
+
+      let updateFn = () => {
+        if (this.unmounted) return
+        this.setState(DUMMY_STATE)
+      }
+      this.update = () => batching.add(updateFn)
+
+      // let fn = () => batchedUpdate(() => {
+      //   if (this.unmounted) return
+      //   this.setState(DUMMY_STATE)
+      // })
+
+      // create a reactive render for the component
+      // run a dummy setState to schedule a new reactive render, avoid forceUpdate
+      this.render = observe(this.render, {
+        scheduler: this.update,
+        lazy: true
+      })
+    }
+
+    render () {
+      return isStateless ? Component(this.props, this.context) : super.render()
+    }
+
+    componentWillUnmount () {
+      this.unmounted = true
+      // stop autorun
+      unobserve(this.render)
+      // call user defined componentWillUnmount
+      if (super.componentWillUnmount) super.componentWillUnmount()
+    }
   }
-  return function decorateTarget (DecoratedComponent) {
-    class SubscriptionsContainer extends React.Component {
-      constructor (props) {
-        super(props)
-        this.subscriptions = this.getCurrentSubscriptions(props)
-        this.state = {}
-        this.listeners = {}
-        this.init()
-      }
 
-      componentWillUnmount () {
-        this.unmounted = true
-        for (let key in this.items) {
-          this.destroyItem(key)
+const getSubscriptionsContainer = (DecoratedComponent, fns) =>
+  class SubscriptionsContainer extends React.Component {
+    componentWillMount () {
+      this.model = generateScopedModel()
+      this.models = {}
+      // pipe the local model into props as $scope
+      this.models.$scope = this.model
+      semaphore.allowComponentSetter = true
+      this.model.set('', observable({})) // Initially set empty object for observable
+      semaphore.allowComponentSetter = false
+      this.scope = this.model.get()
+      bindMethods(this.model, HELPER_METHODS_TO_BIND)
+      this.autorunSubscriptions()
+    }
+
+    // TODO: Implement queueing
+    async componentWillReceiveProps (...args) {
+      let [nextProps] = args
+      for (let dataFn of this.dataFns) {
+        await dataFn(nextProps)
+        if (this.unmounted) return
+        if (this.doForceUpdate) {
+          this.doForceUpdate = false
+          this.setState(DUMMY_STATE)
         }
-        delete this.items
+      }
+    }
+
+    componentWillUnmount () {
+      this.unmounted = true
+
+      // Stop render computation
+      if (this.decoratedComponent) {
+        unobserve(this.decoratedComponent.render)
+        delete this.decoratedComponent
       }
 
-      // Update only after everything loaded
-      shouldComponentUpdate (nextProps, nextState) {
-        return !!this.loaded
+      // Stop all subscription params computations
+      for (let index = 0; index < this.dataFns.length; index++) {
+        let computationName = getComputationName(index)
+        this.comps[computationName] && unobserve(this.comps[computationName])
+        delete this.comps[computationName]
+      }
+      delete this.dataFns
+
+      // Destroy whole model before destroying items one by one.
+      // This prevents model.on() and model.start() from firing
+      // extra times
+      semaphore.allowComponentSetter = true
+      this.model.destroy()
+      semaphore.allowComponentSetter = false
+
+      // Destroy all subscription items
+      for (let key in this.items) {
+        this.destroyItem(key, true, true)
       }
 
-      getCurrentSubscriptions (props) {
-        return (getSubscriptions && getSubscriptions(props)) || {}
-      }
+      delete this.models.$scope
+      delete this.models
+      delete this.scope
+      delete this.model // delete the actual model
+    }
 
-      // Update queries whenever props change and if the subscriptions
-      // object changes as a result of that
-      componentWillReceiveProps (nextProps) {
-        if (!REACTIVE_BY_DEFAULT) {
-          let updateQueries = reactiveProps.some(
-            reactiveProp =>
-              !_.isEqual(this.props[reactiveProp], nextProps[reactiveProp])
-          )
-          if (!updateQueries) return
+    render () {
+      this.rendered = true
+      if (this.loaded) {
+        return React.createElement(DecoratedComponent, {
+          ...this.props,
+          scope: this.scope,
+          ...this.models,
+          ref: (...args) => {
+            this.decoratedComponent = args[0]
+            if (this.props.innerRef) this.props.innerRef(...args)
+          }
+        })
+      } else {
+        // When in React Native env, don't use any loading spinner
+        if (
+          typeof navigator !== 'undefined' &&
+          navigator.product === 'ReactNative'
+        ) {
+          return null
+        } else {
+          return React.createElement('div', { className: 'Loading' })
         }
-        let prevSubscriptions = this.subscriptions
-        this.subscriptions = this.getCurrentSubscriptions(nextProps)
-        let keys = _.union(
-          _.keys(prevSubscriptions),
-          _.keys(this.subscriptions)
-        )
-        keys = _.uniq(keys)
-        for (let key of keys) {
-          if (!_.isEqual(this.subscriptions[key], prevSubscriptions[key])) {
-            if (prevSubscriptions[key]) this.destroyItem(key)
-            if (this.subscriptions[key]) {
-              this.initItem(key)
-            } else {
-              // If the subscription was there before but now
-              // it's gone, we should remove the item's data
-              this.removeItemData(key)
+      }
+    }
+
+    // TODO: When we change subscription params quickly, we are going to
+    //       receive a race condition when earlier subscription result might
+    //       take longer to process compared to the same newer subscription.
+    //       Implement Queue.
+    async autorunSubscriptions () {
+      this.items = {}
+      this.comps = {}
+      this.dataFns = []
+      for (let index = 0; index < fns.length; index++) {
+        let fn = fns[index]
+        let subscriptions = {}
+        let dataFn = async props => {
+          let prevSubscriptions = subscriptions || {}
+          let computationName = getComputationName(index)
+          let subscribeFn = () => {
+            subscriptions = fn.call(this, props)
+          }
+          this.comps[computationName] = observe(subscribeFn, {
+            scheduler: dataFn
+          })
+
+          let keys = _.union(_.keys(prevSubscriptions), _.keys(subscriptions))
+          keys = _.uniq(keys)
+          let promises = []
+          for (let key of keys) {
+            if (!_.isEqual(subscriptions[key], prevSubscriptions[key])) {
+              if (subscriptions[key]) {
+                promises.push(await this.initItem(key, subscriptions[key]))
+              } else {
+                this.destroyItem(key, true)
+              }
             }
           }
+          await Promise.all(promises)
         }
-      }
-
-      _isExtraQuery (queryParams) {
-        return queryParams.$count || queryParams.$aggregate
-      }
-
-      async init () {
-        this.items = {}
-        this.itemKeys = {}
-        for (let key in this.subscriptions) {
-          let constructor = this.getItemConstructor(this.subscriptions[key])
-          this.items[key] = new constructor(key, this.subscriptions[key])
-        }
-        // Init all items
-        await Promise.all(_.map(this.items, i => i.init()))
+        this.dataFns.push(dataFn)
+        await dataFn(this.props)
         if (this.unmounted) return
-        this.updateAllData()
-        // Start listening for updates
-        for (let key in this.items) {
-          this.listenForItemUpdates(key)
+      }
+      // Reset force update since we are doing the initial rendering anyways
+      this.doForceUpdate = false
+      this.loaded = true
+      // Sometimes all the subscriptions might go through synchronously
+      // (for example if we are only subscribing to local data).
+      // In this case we don't need to manually trigger update
+      // since render will execute on its own later in the lifecycle.
+      if (this.rendered) this.setState(DUMMY_STATE)
+    }
+
+    // TODO: Maybe implement queueing. Research if race condition is present.
+    async initItem (key, params) {
+      let constructor = getItemConstructor(params)
+      let item = new constructor(this.model, key, params)
+      await item.init()
+      if (this.unmounted) return item.destroy()
+      batching.batch(() => {
+        if (this.items[key]) this.destroyItem(key)
+        item.refModel()
+        this.items[key] = item
+        // Expose scoped model under the same name with prepended $
+        let keyModelName = getScopedModelName(key)
+        if (!this.models[keyModelName]) {
+          this.models[keyModelName] = this.model.at(key)
+          this.doForceUpdate = true
         }
-        this.loaded = true
-        this.forceUpdate()
-      }
+      })
+    }
 
-      async initItem (key) {
-        let constructor = this.getItemConstructor(this.subscriptions[key])
-        this.items[key] = new constructor(key, this.subscriptions[key])
-        await this.items[key].init()
-        if (this.unmounted) return
-        this.updateItemData(key)
-        this.listenForItemUpdates(key)
-      }
-
-      destroyItem (key) {
+    // TODO: Refactor to use 3 different facade methods
+    destroyItem (key, terminate, modelDestroyed) {
+      if (!this.items[key]) return console.error('Trying to destroy', key)
+      batching.batch(() => {
+        if (!modelDestroyed) this.items[key].unrefModel()
+        let keyModelName = getScopedModelName(key)
+        if (terminate) {
+          delete this[keyModelName]
+          this.doForceUpdate = true
+        }
         this.items[key].destroy()
-        delete this.items[key]
-      }
-
-      getItemConstructor (subscription) {
-        if (typeof subscription === 'string') return Local
-        let [, params] = subscription
-        return typeof params === 'string' || !params
-          ? Doc
-          : this._isExtraQuery(params) ? QueryExtra : Query
-      }
-
-      listenForItemUpdates (key) {
-        this.items[key].on('update', this.updateItemData.bind(this, key))
-      }
-
-      updateAllData () {
-        let data = {}
-        _.reduce(
-          this.items,
-          (data, item, key) => {
-            let itemData = item.getData()
-            this.itemKeys[key] = _.keys(itemData)
-            return _.merge(data, itemData)
-          },
-          data
-        )
-        this.setState(customClone(data))
-      }
-
-      // Update item data and also remove any obsolete data
-      // (old keys are tracked it itemKeys)
-      updateItemData (key) {
-        let data = this.items[key].getData()
-        let oldItemKeys = this.itemKeys[key] || []
-        let itemKeys = _.keys(data)
-        this.itemKeys[key] = itemKeys
-        let equal = this.items[key].isEqual(
-          data,
-          _.pick(this.state, oldItemKeys)
-        )
-        if (equal) return
-        let removeValues = {}
-        for (let itemKey of _.difference(oldItemKeys, itemKeys)) {
-          _.merge(removeValues, { [itemKey]: null })
-        }
-        // TODO: remove log
-        // console.log('--UPDATE', this.state, data)
-        this.setState(_.merge(removeValues, customClone(data)))
-      }
-
-      removeItemData (key) {
-        let oldItemKeys = this.itemKeys[key] || []
-        if (oldItemKeys.length === 0) return
-        let removeValues = {}
-        for (let itemKey of oldItemKeys) {
-          _.merge(removeValues, { [itemKey]: null })
-        }
-        delete this.itemKeys[key]
-        this.setState(removeValues)
-      }
-
-      render () {
-        if (this.loaded) {
-          return React.createElement(DecoratedComponent, {
-            ...this.props,
-            ...this.state
-          })
-        } else {
-          // When in React Native env, don't use any loading spinner
-          if (
-            typeof navigator !== 'undefined' &&
-            navigator.product === 'ReactNative'
-          ) {
-            return null
-          } else {
-            return React.createElement('div', { className: 'Loading' })
-          }
-        }
-      }
+      })
+      delete this.items[key]
     }
+  }
 
-    return hoistStatics(SubscriptionsContainer, DecoratedComponent)
+function generateScopedModel () {
+  let path = `${DEFAULT_COLLECTION}.${model.id()}`
+  return model.scope(path)
+}
+
+function isExtraQuery (queryParams) {
+  return queryParams.$count || queryParams.$aggregate
+}
+
+function getItemConstructor (subscription) {
+  if (typeof subscription === 'string') return Local
+  let [, params] = subscription
+  return typeof params === 'string' || !params
+    ? Doc
+    : isExtraQuery(params) ? QueryExtra : Query
+}
+
+function getComputationName (index) {
+  return `${SUBSCRIBE_COMPUTATION_NAME}${index}`
+}
+
+function bindMethods (object, methodsToBind) {
+  for (let method of methodsToBind) {
+    object[method] = object[method].bind(object)
   }
 }
 
-export function isModelKey (key) {
-  return /^\$/.test(key)
+function getScopedModelName (key) {
+  return `$${key}`
 }
 
-// Don't clone models (which are starting with $)
-export function customClone (data) {
-  let res = {}
-  for (let key in data) {
-    if (isModelKey(key)) {
-      res[key] = data[key]
-    } else {
-      res[key] = _.cloneDeep(data[key])
-    }
+const BATCH_SETTERS = ['_mutate', '_setEach', '_setDiff', '_setDiffDeep']
+
+for (let methodName of BATCH_SETTERS) {
+  const oldMethod = racer.Model.prototype[methodName]
+  racer.Model.prototype[methodName] = function () {
+    let value
+    batching.batch(() => {
+      value = oldMethod.apply(this, arguments)
+    })
+    return value
   }
-  return res
+}
+
+const WARNING_SETTERS = ['_set', '_setDiff', '_setNull', '_del']
+for (let methodName of WARNING_SETTERS) {
+  const oldMethod = racer.Model.prototype[methodName]
+  racer.Model.prototype[methodName] = function (segments) {
+    if (
+      segments.length === 2 &&
+      segments[0] === DEFAULT_COLLECTION &&
+      !semaphore.allowComponentSetter
+    ) {
+      throw new Error(
+        `You can't use '${methodName.replace(/^_/, '')}' on component's ` +
+          `$scope root path. Use 'setEach' instead.`
+      )
+    }
+    return oldMethod.apply(this, arguments)
+  }
+}
+
+// Monkey patch racer's local documents to be observable
+let oldUpdateCollectionData = RacerLocalDoc.prototype._updateCollectionData
+RacerLocalDoc.prototype._updateCollectionData = function () {
+  this.data = observable(this.data)
+  return oldUpdateCollectionData.apply(this, arguments)
 }

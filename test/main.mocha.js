@@ -1,10 +1,11 @@
-global.DEBUG = true
+global.DEBUG = process.env.DEBUG || process.env.debug
 import React from 'react'
 import { expect } from 'chai'
 import { mount } from 'enzyme'
 import { createWaitForElement } from 'enzyme-wait'
 import _ from 'lodash'
 import './_server'
+import waitForExpect from 'wait-for-expect'
 
 // import Simple from './stubs/Simple'
 
@@ -26,7 +27,7 @@ async function initSimple (...args) {
     initialProps = args[0]
     args = args.slice(1)
   }
-  let Subscribed = subscribe(...args)(Simple)
+  let Subscribed = subscribe(...args)(Simple())
   let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Simple')
   w.getItems = function () {
@@ -37,8 +38,8 @@ async function initSimple (...args) {
       return this.getItems()
     }
   })
-  w.nextRender = function (count = 1) {
-    return nextRender(this, count)
+  w.nextRender = function (...args) {
+    return nextRender(this, ...args)
   }
   w.renderSetProps = function (count, props) {
     return renderSetProps(this, count, props)
@@ -58,7 +59,7 @@ async function initComplex (...args) {
     initialProps = args[0]
     args = args.slice(1)
   }
-  let Subscribed = subscribe(...args)(Complex)
+  let Subscribed = subscribe(...args)(Complex())
   let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Complex')
   w.getItems = function () {
@@ -69,8 +70,8 @@ async function initComplex (...args) {
       return this.getItems()
     }
   })
-  w.nextRender = function (count = 1) {
-    return nextRender(this, count)
+  w.nextRender = function (...args) {
+    return nextRender(this, ...args)
   }
   w.renderSetProps = function (count, props) {
     return renderSetProps(this, count, props)
@@ -122,17 +123,22 @@ async function renderSetProps (w, count, props) {
   // KEEP THIS IN MIND when figuring out how many renders to wait.
   w.setProps(props)
   let selector = `.RENDER-${currentRender + count}`
-  console.log('wait for:', selector)
-  await w.waitFor(selector)
+  typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
+  // await w.waitFor(selector)
 }
 
-async function nextRender (w, count = 1) {
+async function nextRender (w, count = 1, fn) {
+  if (typeof count === 'function') {
+    fn = count
+    count = 1
+  }
   let currentRender = w.html().match(/RENDER-(\d+)/)[1]
   if (!currentRender) throw new Error("Component didn't render")
   currentRender = ~~currentRender
   // console.log('>> current', currentRender)
   let selector = `.RENDER-${currentRender + count}`
-  console.log('wait for:', selector)
+  typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
+  if (fn) fn()
   await w.waitFor(selector)
 }
 
@@ -240,21 +246,21 @@ describe('Queries', () => {
         .to.have.lengthOf(indexes.length)
         .and.include.members(alias(indexes))
     }
-    await updateAndCheckItems(3, 'blue', [4, 5], true)
-    await updateAndCheckItems(4, 'blue', [5], true)
+    await updateAndCheckItems(3, 'blue', [4, 5])
+    await updateAndCheckItems(4, 'blue', [5])
     await updateAndCheckItems(1, 'red', [1, 5])
     await updateAndCheckItems(3, 'red', [1, 3, 5])
-    await updateAndCheckItems(5, 'blue', [1, 3], true)
-    await updateAndCheckItems(1, 'blue', [3], true)
-    await updateAndCheckItems(3, 'blue', [], true)
+    await updateAndCheckItems(5, 'blue', [1, 3])
+    await updateAndCheckItems(1, 'blue', [3])
+    await updateAndCheckItems(3, 'blue', [])
     await updateAndCheckItems(5, 'red', [5])
     await updateAndCheckItems(3, 'red', [3, 5])
     await updateAndCheckItems(4, 'red', [3, 4, 5])
   })
 
   it('dynamic update of query param', async () => {
-    w = await initSimple({ color: 'red' }, 'color', props => ({
-      items: ['users', { color: props.color }]
+    w = await initSimple({ color: 'red' }, ({ color }) => ({
+      items: ['users', { color }]
     }))
     expect(w.items)
       .to.have.lengthOf(3)
@@ -281,15 +287,12 @@ describe('Complex', () => {
         color0: 'red',
         color1: 'blue'
       },
-      'color0',
-      'color1',
-      'hasCar',
-      props => {
+      ({ color0, color1, hasCar }) => {
         let res = {
-          items0: props.color0 && ['users', { color: props.color0 }],
-          items1: props.color1 && ['users', { color: props.color1 }]
+          items0: color0 && ['users', { color: color0 }],
+          items1: color1 && ['users', { color: color1 }]
         }
-        if (props.hasCar) res.items2 = ['cars', 'test1_']
+        if (hasCar) res.items2 = ['cars', 'test1_']
         return res
       }
     )
@@ -301,70 +304,67 @@ describe('Complex', () => {
       .and.include.members(alias([1, 2]))
     expect(w.items[2]).to.have.lengthOf(0)
     // 4 renders should happen: for props change and each item's setState
-    await w.renderSetProps(4, {
+
+    await w.setProps({
       color0: 'blue',
       color1: 'red',
       hasCar: true
     })
-    expect(w.items[0])
-      .to.have.lengthOf(2)
-      .and.include.members(alias([1, 2]))
-    expect(w.items[1])
-      .to.have.lengthOf(3)
-      .and.include.members(alias([3, 4, 5]))
-    expect(w.items[2])
-      .to.have.lengthOf(1)
-      .and.include.members(alias([1]))
+
+    await waitForExpect(() => {
+      expect(w.items[0])
+        .to.have.lengthOf(2)
+        .and.include.members(alias([1, 2]))
+      expect(w.items[1])
+        .to.have.lengthOf(3)
+        .and.include.members(alias([3, 4, 5]))
+      expect(w.items[2])
+        .to.have.lengthOf(1)
+        .and.include.members(alias([1]))
+    })
+
     // 1 render should happen: for props and removeItemData -- sync
-    await w.renderSetProps({ hasCar: false })
-    expect(w.items[0])
-      .to.have.lengthOf(2)
-      .and.include.members(alias([1, 2]))
-    expect(w.items[1])
-      .to.have.lengthOf(3)
-      .and.include.members(alias([3, 4, 5]))
-    expect(w.items[2]).to.have.lengthOf(0)
-    await w.renderSetProps(3, {
+    await w.setProps({ hasCar: false })
+    await waitForExpect(() => {
+      expect(w.items[0])
+        .to.have.lengthOf(2)
+        .and.include.members(alias([1, 2]))
+      expect(w.items[1])
+        .to.have.lengthOf(3)
+        .and.include.members(alias([3, 4, 5]))
+      expect(w.items[2]).to.have.lengthOf(0)
+    })
+    await w.setProps({
       color0: undefined,
       color1: { $in: ['red', 'blue'] },
       hasCar: true
     })
-    expect(w.items[0]).to.have.lengthOf(0)
-    expect(w.items[1])
-      .to.have.lengthOf(5)
-      .and.include.members(alias([1, 2, 3, 4, 5]))
-    expect(w.items[2])
-      .to.have.lengthOf(1)
-      .and.include.members(alias([1]))
-    await w.renderSetProps(2, {
+    await waitForExpect(() => {
+      expect(w.items[0]).to.have.lengthOf(0)
+      expect(w.items[1])
+        .to.have.lengthOf(5)
+        .and.include.members(alias([1, 2, 3, 4, 5]))
+      expect(w.items[2])
+        .to.have.lengthOf(1)
+        .and.include.members(alias([1]))
+    })
+    await w.setProps({
       color0: 'red',
       hasCar: false
     })
-    expect(w.items[0])
-      .to.have.lengthOf(3)
-      .and.include.members(alias([3, 4, 5]))
-    expect(w.items[1])
-      .to.have.lengthOf(5)
-      .and.include.members(alias([1, 2, 3, 4, 5]))
-    expect(w.items[2]).to.have.lengthOf(0)
+    await waitForExpect(() => {
+      expect(w.items[0])
+        .to.have.lengthOf(3)
+        .and.include.members(alias([3, 4, 5]))
+      expect(w.items[1])
+        .to.have.lengthOf(5)
+        .and.include.members(alias([1, 2, 3, 4, 5]))
+      expect(w.items[2]).to.have.lengthOf(0)
+    })
   })
 })
 
 describe('Local', () => {
-  it('should return $model which is not a clone', async () => {
-    w = await initSimple(() => ({ items: '_page.document' }))
-    expect(w.items).to.have.lengthOf(0)
-    let $document = w
-      .find(Simple)
-      .first()
-      .prop('$items')
-    expect($document).to.exist
-    model.set('_page.document', { id: alias(1), name: alias(1) })
-    // If $document is a clone, it won't have the same data tree
-    expect($document.get()).to.deep.equal(model.get('_page.document'))
-    model.del('_page.document')
-  })
-
   it('should update data', async () => {
     w = await initSimple(() => ({ items: '_page.document' }))
     expect(w.items).to.have.lengthOf(0)
@@ -382,6 +382,181 @@ describe('Local', () => {
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include(alias(3))
+    model.del('_page.document')
+  })
+})
+
+describe('Edge cases', () => {
+  it('initially null document. Then update to create it.', async () => {
+    let userId = alias(777)
+    w = await initSimple(() => ({ items: ['users', userId] }))
+    expect(w.items).to.have.lengthOf(0)
+    serverModel.add(`users`, {
+      id: userId,
+      name: userId
+    })
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(userId)
+    serverModel.set(`users.${userId}.name`, 'Abrakadabra')
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('Abrakadabra')
+    serverModel.set(`users.${userId}.name`, 'Blablabla')
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('Blablabla')
+    serverModel.del(`users.${userId}`)
+    await w.nextRender()
+    expect(w.items).to.have.lengthOf(0)
+    serverModel.add(`users`, {
+      id: userId,
+      name: userId
+    })
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(userId)
+    serverModel.set(`users.${userId}.name`, 'Abrakadabra')
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('Abrakadabra')
+    serverModel.del(`users.${userId}`)
+    await w.nextRender()
+    w.unmount()
+  })
+
+  it('ref NON existent local document and ensure reactivity', async () => {
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items).to.have.lengthOf(0)
+    await w.nextRender(() => {
+      model.set('_page.document', { id: 'document', name: 'document' })
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => model.set('_page.document.name', 'first'))
+    // await new Promise(resolve => setTimeout(resolve, 1000))
+    // await w.nextRender(3, () => {})
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('first')
+    await w.nextRender(() => model.set('_page.document.name', 'second'))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('second')
+    model.del('_page.document')
+    // await w.nextRender(3, () => {})
+  })
+
+  it('ref an existing local document and ensure reactivity', async () => {
+    model.set('_page.document', { id: 'document', name: 'document' })
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => model.set('_page.document.name', 'first'))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('first')
+    await w.nextRender(() => model.set('_page.document.name', 'second'))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('second')
+    model.del('_page.document')
+  })
+
+  it('should render only when changing something which was rendered before', async () => {
+    model.set('_page.document', { id: 'document', name: 'document' })
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => {
+      model.set('_page.document.name', 'first')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('first')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'red')
+      model.set('_page.document.name', 'second')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('second')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'green')
+      model.set('_page.document.name', 'third')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
+    await w.nextRender(() => {
+      model.set('_page.document.showColor', true)
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'yellow')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
+    await w.nextRender(2, () => {
+      model.set('_page.document.color', 'orange')
+      model.set('_page.document.name', 'fourth')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('fourth')
+    await w.nextRender(() => {
+      model.del('_page.document.showColor')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('fourth')
+    await w.nextRender(2, () => {
+      model.set('_page.document.color', 'grey')
+      model.set('_page.document.name', 'fifth')
+      model.set('_page.document.color', 'black')
+      model.set('_page.document.name', 'sixth')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('sixth')
+    model.del('_page.document')
+  })
+
+  it('model.setEach() should batch changes and only render once', async () => {
+    model.set('_page.document', {
+      id: 'document',
+      name: 'document',
+      showColor: true
+    })
+    w = await initSimple(() => ({ items: '_page.document' }))
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(() => {
+      model.set('_page.document.color', 'grey')
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('document')
+    await w.nextRender(3, () => {
+      model.setEach('_page.document', { color: 'green', name: 'first' })
+      model.setEach('_page.document', { color: 'black', name: 'second' })
+      model.setEach('_page.document', { color: 'yellow', name: 'third' })
+    })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include('third')
     model.del('_page.document')
   })
 })

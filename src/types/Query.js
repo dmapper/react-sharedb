@@ -1,6 +1,7 @@
 import model from '../model'
 import Base from './Base'
-import DocListener from '../helpers/DocListener'
+import { observable } from '@nx-js/observer-util'
+import { observablePath } from '../util'
 
 const MAX_LISTENERS = 100
 
@@ -10,13 +11,24 @@ export default class Query extends Base {
     let [collection, query] = this.params
     this.collection = collection
     this.query = query
+    this.listeners = []
   }
 
   async init () {
     await this._subscribe()
-    // Can be destroyed while subscribe is still in progress
-    if (this.destroyed) return
-    this._listenForUpdates()
+  }
+
+  refModel () {
+    let { key } = this
+    this.subscription.ref(this.model.at(key))
+    observablePath(this.model.path(key))
+    this.subscription.refIds(this.model.at(getIdsName(key)))
+  }
+
+  unrefModel () {
+    let { key } = this
+    this.model.removeRef(getIdsName(key))
+    this.model.removeRef(key)
   }
 
   async _subscribe () {
@@ -25,124 +37,72 @@ export default class Query extends Base {
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
         if (err) return reject(err)
+        // observe ids and extra
+        let path = `$queries.${this.subscription.hash}`
+        observablePath(path)
+
+        // observe initial docs
+        let docIds = this.subscription.getIds()
+        for (let docId of docIds) {
+          let shareDoc = model.connection.get(collection, docId)
+          shareDoc.data = observable(shareDoc.data)
+        }
+        // Increase the listeners cap
+        this.subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
+
+        // [insert]
+        let insertFn = shareDocs => {
+          // observe new docs
+          let ids = getShareResultsIds(shareDocs)
+          ids.forEach(docId => {
+            let shareDoc = model.connection.get(collection, docId)
+            shareDoc.data = observable(shareDoc.data)
+          })
+        }
+        this.subscription.shareQuery.on('insert', insertFn)
+        this.listeners.push({
+          ee: this.subscription.shareQuery,
+          eventName: 'insert',
+          fn: insertFn
+        })
         resolve()
       })
     })
   }
 
-  _unsubscribe () {
-    if (!this.subscription) return
-    model.unsubscribe(this.subscription)
-    delete this.subscription
-  }
-
-  _listenForUpdates () {
-    let { collection, subscription } = this
-    this.listens = true
-    this.listeners = []
-    this.docListeners = {}
-
-    // - Listen for changes to update query data
-
-    // [update of query documents]
-    let docIds = subscription.getIds()
-    for (let docId of docIds) {
-      let docListener = new DocListener(collection, docId)
-      this.docListeners[docId] = docListener
-      docListener.on('update', () => this.emit('update'))
-      docListener.init()
-    }
-
-    // Increase the listeners cap
-    subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
-
-    // [insert]
-    let insertFn = shareDocs => {
-      // Start listening to changes to the new docs
-      let ids = getShareResultsIds(shareDocs)
-      ids.forEach(docId => {
-        let docListener = new DocListener(collection, docId)
-        this.docListeners[docId] = docListener
-        docListener.on('update', () => this.emit('update'))
-        docListener.init()
-      })
-      this.emit('update')
-    }
-    subscription.shareQuery.on('insert', insertFn)
-    this.listeners.push({
-      ee: subscription.shareQuery,
-      eventName: 'insert',
-      fn: insertFn
-    })
-
-    // [remove]
-    let removeFn = shareDocs => {
-      // Stop listening the removed docs
-      let ids = getShareResultsIds(shareDocs)
-      ids.forEach(docId => {
-        this.docListeners[docId].destroy()
-        delete this.docListeners[docId]
-      })
-      this.emit('update')
-    }
-    subscription.shareQuery.on('remove', removeFn)
-    this.listeners.push({
-      ee: subscription.shareQuery,
-      eventName: 'remove',
-      fn: removeFn
-    })
-
-    // [move] Do the regular update
-    let moveFn = () => this.emit('update')
-    subscription.shareQuery.on('move', moveFn)
-    this.listeners.push({
-      ee: subscription.shareQuery,
-      eventName: 'move',
-      fn: moveFn
-    })
-  }
-
   _clearListeners () {
-    if (!this.listens) return
-    // remove query's docs listeners
-    for (let docId in this.docListeners) {
-      this.docListeners[docId].destroy()
-      delete this.docListeners[docId]
-    }
     // remove query listeners
     for (let listener of this.listeners) {
       listener.ee.removeListener(listener.eventName, listener.fn)
     }
-    delete this.docListeners
     delete this.listeners
-    delete this.listens
   }
 
-  getData () {
-    let { subscription, key } = this
-    let ids = []
-    let value = subscription.get().filter(doc => {
-      if (!doc) return
-      ids.push(doc.id)
-      return true
-    })
-    let idsName = getIdsName(key)
-    return {
-      [idsName]: ids,
-      [key]: value
-    }
+  _unsubscribe () {
+    if (!this.subscription) return
+    model.unsubscribe(this.subscription)
+    // setTimeout(() => {
+    //   console.log('>> unsubscribe')
+    //   model.unsubscribe(subscription)
+    // }, 3000)
+    delete this.subscription
   }
 
   destroy () {
-    this.destroyed = true
-    this.removeAllListeners()
     try {
       this._clearListeners()
+      // this.unrefModel() // TODO: Maybe enable unref in future
       // TODO: Test what happens when trying to unsubscribe from not yet subscribed
       this._unsubscribe()
     } catch (err) {}
-    delete this.params
+    delete this.query
+    delete this.collection
+    super.destroy()
   }
+}
+
+export function getIdsName (plural) {
+  return plural.replace(/s$/i, '') + 'Ids'
 }
 
 export function getShareResultsIds (results) {
@@ -152,8 +112,4 @@ export function getShareResultsIds (results) {
     ids.push(shareDoc.id)
   }
   return ids
-}
-
-export function getIdsName (plural) {
-  return plural.replace(/s$/i, '') + 'Ids'
 }

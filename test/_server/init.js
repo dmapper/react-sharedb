@@ -68,7 +68,7 @@ async function initServer () {
       process.send({ type: 'done', err })
       return process.exit(1)
     }
-    console.log('> started server')
+    console.log('◕◕◕ started server ◕◕◕')
     process.send({ type: 'done' })
   })
 }

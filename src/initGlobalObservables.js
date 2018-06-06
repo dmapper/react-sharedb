@@ -1,4 +1,4 @@
-import model from './model'
+import model from '@react-sharedb/model'
 import { observable } from '@nx-js/observer-util'
 import semaphore from './semaphore'
 

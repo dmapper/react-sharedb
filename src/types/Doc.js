@@ -1,4 +1,4 @@
-import model from '../model'
+import model from '@react-sharedb/model'
 import Base from './Base'
 import { observable } from '@nx-js/observer-util'
 

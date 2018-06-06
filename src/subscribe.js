@@ -2,7 +2,7 @@ import _ from 'lodash'
 import racer from 'racer'
 import React from 'react'
 import hoistStatics from 'hoist-non-react-statics'
-import model from './model'
+import model from '@react-sharedb/model'
 import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
@@ -19,7 +19,7 @@ import {
 
 const DEFAULT_COLLECTION = '$components'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
-const HELPER_METHODS_TO_BIND = ['get', 'at', 'atMap', 'atForEach']
+const HELPER_METHODS_TO_BIND = ['get', 'at']
 const DUMMY_STATE = {}
 const batching = new Batching()
 

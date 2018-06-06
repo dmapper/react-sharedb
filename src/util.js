@@ -1,4 +1,4 @@
-import model from './model'
+import model from '@react-sharedb/model'
 import { observable, isObservable } from '@nx-js/observer-util'
 import _ from 'lodash'
 

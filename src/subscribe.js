@@ -97,7 +97,6 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       // pipe the local model into props as $scope
       this.models.$scope = this.model
       this.scope = this.model.get()
-      bindMethods(this.model, HELPER_METHODS_TO_BIND)
       this.autorunSubscriptions()
     }
 
@@ -122,6 +121,7 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
         semaphore.allowComponentSetter = true
         model.set('', observable({})) // Initially set empty object for observable
         semaphore.allowComponentSetter = false
+        bindMethods(model, HELPER_METHODS_TO_BIND)
         return model
       }
     }

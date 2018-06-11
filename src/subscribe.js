@@ -96,9 +96,6 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       this.models = {}
       // pipe the local model into props as $scope
       this.models.$scope = this.model
-      semaphore.allowComponentSetter = true
-      this.model.set('', observable({})) // Initially set empty object for observable
-      semaphore.allowComponentSetter = false
       this.scope = this.model.get()
       bindMethods(this.model, HELPER_METHODS_TO_BIND)
       this.autorunSubscriptions()
@@ -118,7 +115,15 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
     }
 
     getOrCreateModel () {
-      return this.props.$scope ? this.props.$scope : generateScopedModel()
+      if (this.props.$scope) {
+        return this.props.$scope
+      } else {
+        let model = generateScopedModel()
+        semaphore.allowComponentSetter = true
+        model.set('', observable({})) // Initially set empty object for observable
+        semaphore.allowComponentSetter = false
+        return model
+      }
     }
 
     componentWillUnmount () {

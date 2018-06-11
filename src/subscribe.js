@@ -23,15 +23,17 @@ const HELPER_METHODS_TO_BIND = ['get', 'at']
 const DUMMY_STATE = {}
 const batching = new Batching()
 
-export default function subscribe (...fns) {
+export default function subscribe (fn) {
   return function decorateTarget (Component) {
     const isStateless = !(
       Component.prototype && Component.prototype.isReactComponent
     )
-    let AutorunComponent = getAutorunComponent(Component, isStateless)
+    let AutorunComponent = Component.__isSubscription
+      ? Component
+      : getAutorunComponent(Component, isStateless)
     let SubscriptionsContainer = getSubscriptionsContainer(
       AutorunComponent,
-      fns
+      fn ? [fn] : []
     )
     return hoistStatics(SubscriptionsContainer, AutorunComponent)
   }
@@ -87,8 +89,10 @@ const getAutorunComponent = (Component, isStateless) =>
 
 const getSubscriptionsContainer = (DecoratedComponent, fns) =>
   class SubscriptionsContainer extends React.Component {
+    static __isSubscription = true
+
     componentWillMount () {
-      this.model = generateScopedModel()
+      this.model = this.getOrCreateModel()
       this.models = {}
       // pipe the local model into props as $scope
       this.models.$scope = this.model
@@ -113,14 +117,12 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       }
     }
 
+    getOrCreateModel () {
+      return this.props.$scope ? this.props.$scope : generateScopedModel()
+    }
+
     componentWillUnmount () {
       this.unmounted = true
-
-      // Stop render computation
-      if (this.decoratedComponent) {
-        unobserve(this.decoratedComponent.render)
-        delete this.decoratedComponent
-      }
 
       // Stop all subscription params computations
       for (let index = 0; index < this.dataFns.length; index++) {
@@ -156,8 +158,9 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
           scope: this.scope,
           ...this.models,
           ref: (...args) => {
-            this.decoratedComponent = args[0]
-            if (this.props.innerRef) this.props.innerRef(...args)
+            if (!DecoratedComponent.__isSubscription) {
+              if (this.props.innerRef) this.props.innerRef(...args)
+            }
           }
         })
       } else {
@@ -185,6 +188,12 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
         let fn = fns[index]
         let subscriptions = {}
         let dataFn = async props => {
+          // When there are multiple @subscribe's, the outermost
+          // is going to destroy the model.
+          // This check makes sure that inner @subscribe's don't
+          // fire in that case.
+          if (!this.model.get()) return
+
           let prevSubscriptions = subscriptions || {}
           let computationName = getComputationName(index)
           let subscribeFn = () => {

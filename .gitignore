@@ -20,5 +20,5 @@ coverage
 # Temp
 /tmp/
 
-#Tests
+# Tests
 test/shots/*

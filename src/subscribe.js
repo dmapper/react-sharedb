@@ -207,6 +207,8 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
               typeof props === 'function' ? this.props : props
             )
           }
+
+          this.comps[computationName] && unobserve(this.comps[computationName])
           this.comps[computationName] = observe(subscribeFn, {
             scheduler: dataFn
           })

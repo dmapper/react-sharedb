@@ -50,6 +50,12 @@ const getAutorunComponent = (Component, isStateless) =>
       //       and do all the initialization in the constructor
       this.scope = props.scope
 
+      // Mark subscription as used.
+      // This is needed to track in later @subscribe's whether
+      // to create a new $scope or use the one received from props
+      // (in case when the outer component is @subscribe)
+      props.$scope.__used = true
+
       // let fn = _.debounce(() => {
       //   if (this.unmounted) return
       //   this.setState(DUMMY_STATE)
@@ -113,8 +119,9 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       }
     }
 
+    // TODO: Maybe throw an error when passing used $scope to new @subscribe
     getOrCreateModel () {
-      if (this.props.$scope) {
+      if (this.props.$scope && !this.props.$scope.__used) {
         return this.props.$scope
       } else {
         let model = generateScopedModel()

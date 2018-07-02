@@ -209,8 +209,13 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
           let prevSubscriptions = subscriptions || {}
           let computationName = getComputationName(index)
           let subscribeFn = () => {
-            subscriptions = fn.call(this, props)
+            subscriptions = fn.call(
+              this,
+              typeof props === 'function' ? this.props : props
+            )
           }
+
+          this.comps[computationName] && unobserve(this.comps[computationName])
           this.comps[computationName] = observe(subscribeFn, {
             scheduler: dataFn
           })

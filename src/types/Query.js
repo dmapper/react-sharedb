@@ -102,6 +102,7 @@ export default class Query extends Base {
 }
 
 export function getIdsName (plural) {
+  if (/ies$/i.test(plural)) return plural.replace(/ies$/i, 'y') + 'Ids'
   return plural.replace(/s$/i, '') + 'Ids'
 }
 

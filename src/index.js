@@ -1,4 +1,6 @@
 import './initGlobalObservables'
+import subscribe, { batching } from './subscribe'
 export { default as model } from '@react-sharedb/model'
-export { default as subscribe } from './subscribe'
+export { subscribe }
+export const batchModel = batching.batch.bind(batching)
 export { default as _semaphore } from './semaphore'

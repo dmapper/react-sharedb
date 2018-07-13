@@ -21,7 +21,7 @@ const DEFAULT_COLLECTION = '$components'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
 const HELPER_METHODS_TO_BIND = ['get', 'at']
 const DUMMY_STATE = {}
-const batching = new Batching()
+export const batching = new Batching()
 
 export default function subscribe (fn) {
   return function decorateTarget (Component) {

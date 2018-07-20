@@ -39,7 +39,7 @@ export default function subscribe (fn) {
   }
 }
 
-const getAutorunComponent = (Component, isStateless) =>
+const getAutorunComponent = (Component, isStateless) => {
   class AutorunHOC extends (isStateless ? React.Component : Component) {
     constructor (props, ...args) {
       super(props, ...args)
@@ -92,6 +92,9 @@ const getAutorunComponent = (Component, isStateless) =>
       if (super.componentWillUnmount) super.componentWillUnmount()
     }
   }
+  AutorunHOC.displayName = `AutorunHOC(${Component.displayName || Component.name || 'Component'})`
+  return AutorunHOC
+}
 
 const getSubscriptionsContainer = (DecoratedComponent, fns) =>
   class SubscriptionsContainer extends React.Component {

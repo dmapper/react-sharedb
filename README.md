@@ -118,7 +118,7 @@ import {model, subscribe} from 'react-sharedb'
 // `props.scope.users` (array of documents) AND
 // `props.scope.userIds` (array of ids) - auto singular name with the `Ids` suffix
  
-export default class Game extends React.Component {
+export default class Room extends React.Component {
   constructor (...props) {
     super(...props)    
     let {$room, roomId} = this.props

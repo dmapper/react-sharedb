@@ -83,7 +83,7 @@ import {model, subscribe} from 'react-sharedb'
   // Subscribe to the same private path again to get the userId, which
   // we did manually setup in the parent `<Home>` component.
   // The pattern of subscribing and updating data in a private path
-  // can be used to expose some data from one component into another. 
+  // can be used to expose some data from one component to another.   
   userId: '_session.userId',
   
   // Subscribe to the particular document from a public collection `rooms` by id.

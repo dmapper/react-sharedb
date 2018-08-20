@@ -148,7 +148,7 @@ export default class Game extends React.Component {
           users
           .filter(({id}) => id !== userId) // exclude my user
           .map(user =>
-            <section>
+            <section key={user.id}>
               {user.name || `User ${user.id}`}
             </section>
           )

@@ -122,10 +122,10 @@ export default class Game extends React.Component {
   constructor (...props) {
     super(...props)    
     let {$room, roomId} = this.props
-    let {userId, room: {userIds = []}} = this.props.scope
+    let {userId, room, room: {userIds = []}} = this.props.scope
     
     // Create an empty room if it wasn't created yet
-    if (!$room.get()) $room.add({title: `Room #${roomId}`})
+    if (!room) $room.add({title: `Room #${roomId}`})
     
     // Add user to the room unless he's already there
     if (!userIds.includes(userId)) $room.push('userIds', userId)

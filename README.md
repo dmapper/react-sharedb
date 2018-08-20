@@ -106,7 +106,9 @@ import {model, subscribe} from 'react-sharedb'
   
   // Subscribe to a query to get docs from a public `users` collection
   // using the array of userIds from `room` received in the previous subscription 
-  users: ['users', {_id: {$in: props.scope.room.userIds || []}}]
+  users: ['users', {_id: {
+    $in: props.scope.room && props.scope.room.userIds || []
+  }}]
     
 }))
 

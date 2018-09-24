@@ -256,21 +256,26 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
     }
 
     // TODO: Maybe implement queueing. Research if race condition is present.
-    async initItem (key, params) {
+    initItem (key, params) {
       let constructor = getItemConstructor(params)
       let item = new constructor(this.model, key, params)
-      await item.init()
-      if (this.unmounted) return item.destroy()
-      batching.batch(() => {
-        if (this.items[key]) this.destroyItem(key)
-        item.refModel()
-        this.items[key] = item
-        // Expose scoped model under the same name with prepended $
-        let keyModelName = getScopedModelName(key)
-        if (!this.models[keyModelName]) {
-          this.models[keyModelName] = this.model.at(key)
-          this.doForceUpdate = true
-        }
+      // We have to use promises directly here rather than async/await,
+      // because we have to prevent async execution of init() if it is not present.
+      // But defining the function as `async` will make it run in the next event loop.
+      let promise = item.init ? item.init() : Promise.resolve()
+      return promise.then(() => {
+        if (this.unmounted) return item.destroy()
+        batching.batch(() => {
+          if (this.items[key]) this.destroyItem(key)
+          item.refModel()
+          this.items[key] = item
+          // Expose scoped model under the same name with prepended $
+          let keyModelName = getScopedModelName(key)
+          if (!this.models[keyModelName]) {
+            this.models[keyModelName] = this.model.at(key)
+            this.doForceUpdate = true
+          }
+        })
       })
     }
 

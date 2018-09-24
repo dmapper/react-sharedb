@@ -5,8 +5,6 @@ export default class Base {
     this.model = model
   }
 
-  async init () {}
-
   refModel () {}
 
   unrefModel () {}

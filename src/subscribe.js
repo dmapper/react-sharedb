@@ -92,7 +92,9 @@ const getAutorunComponent = (Component, isStateless) => {
       if (super.componentWillUnmount) super.componentWillUnmount()
     }
   }
-  AutorunHOC.displayName = `AutorunHOC(${Component.displayName || Component.name || 'Component'})`
+  AutorunHOC.displayName = `AutorunHOC(${Component.displayName ||
+    Component.name ||
+    'Component'})`
   return AutorunHOC
 }
 
@@ -226,15 +228,17 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
           let keys = _.union(_.keys(prevSubscriptions), _.keys(subscriptions))
           keys = _.uniq(keys)
           let promises = []
-          for (let key of keys) {
-            if (!_.isEqual(subscriptions[key], prevSubscriptions[key])) {
-              if (subscriptions[key]) {
-                promises.push(await this.initItem(key, subscriptions[key]))
-              } else {
-                this.destroyItem(key, true)
+          batching.batch(() => {
+            for (let key of keys) {
+              if (!_.isEqual(subscriptions[key], prevSubscriptions[key])) {
+                if (subscriptions[key]) {
+                  promises.push(this.initItem(key, subscriptions[key]))
+                } else {
+                  this.destroyItem(key, true)
+                }
               }
             }
-          }
+          })
           await Promise.all(promises)
         }
         this.dataFns.push(dataFn)

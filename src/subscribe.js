@@ -262,8 +262,7 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       // We have to use promises directly here rather than async/await,
       // because we have to prevent async execution of init() if it is not present.
       // But defining the function as `async` will make it run in the next event loop.
-      let promise = item.init ? item.init() : Promise.resolve()
-      return promise.then(() => {
+      const finishInit = () => {
         if (this.unmounted) return item.destroy()
         batching.batch(() => {
           if (this.items[key]) this.destroyItem(key)
@@ -276,7 +275,13 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
             this.doForceUpdate = true
           }
         })
-      })
+      }
+      if (item.init) {
+        return item.init().then(finishInit)
+      } else {
+        finishInit()
+        return Promise.resolve()
+      }
     }
 
     // TODO: Refactor to use 3 different facade methods

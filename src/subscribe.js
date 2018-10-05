@@ -181,15 +181,7 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
           }
         })
       } else {
-        // When in React Native env, don't use any loading spinner
-        if (
-          typeof navigator !== 'undefined' &&
-          navigator.product === 'ReactNative'
-        ) {
-          return null
-        } else {
-          return React.createElement('div', { className: 'Loading' })
-        }
+        return null
       }
     }
 

@@ -1,4 +1,4 @@
-import './initGlobalObservables'
+import './globalInit'
 import subscribe, { batching } from './subscribe'
 export { default as model } from '@react-sharedb/model'
 export { subscribe }

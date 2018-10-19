@@ -181,7 +181,15 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
           }
         })
       } else {
-        return null
+        // When in React Native env, don't use any loading spinner
+        if (
+          typeof navigator !== 'undefined' &&
+          navigator.product === 'ReactNative'
+        ) {
+          return null
+        } else {
+          return React.createElement('div', { className: 'Loading' })
+        }
       }
     }
 
@@ -357,6 +365,16 @@ for (let methodName of WARNING_SETTERS) {
 // Monkey patch racer's local documents to be observable
 let oldUpdateCollectionData = RacerLocalDoc.prototype._updateCollectionData
 RacerLocalDoc.prototype._updateCollectionData = function () {
-  this.data = observable(this.data)
+  if (this.data) this.data = observable(this.data)
+  if (!isObservable(this.collectionData)) {
+    console.warn(
+      `[react-sharedb] Local collection "${this
+        .collectionName}" is not initialized to be observable. ` +
+        `Run require("react-sharedb").initLocalCollection("${this
+          .collectionName}") before using it anywhere. ` +
+        `You must also do it right after cleaning it up with model.silent().destroy("${this
+          .collectionName}")`
+    )
+  }
   return oldUpdateCollectionData.apply(this, arguments)
 }

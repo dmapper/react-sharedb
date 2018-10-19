@@ -1,6 +1,7 @@
 import model from '@react-sharedb/model'
 import { observable, isObservable } from '@nx-js/observer-util'
 import _ from 'lodash'
+import semaphore from './semaphore'
 
 export function observablePath (path) {
   let segments = model._splitPath(path)
@@ -11,4 +12,11 @@ export function observablePath (path) {
   if (typeof result === 'object' && result !== null && !isObservable(result)) {
     _.get(model.data, parentSegments)[leafSegment] = observable(result)
   }
+}
+
+export function initLocalCollection (collection) {
+  semaphore.allowComponentSetter = true
+  model.set(`${collection}.__FOO`, 'hello')
+  semaphore.allowComponentSetter = false
+  model.data[collection] = observable(model.data[collection])
 }

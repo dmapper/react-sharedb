@@ -2,6 +2,7 @@ import React from 'react'
 import _ from 'lodash'
 
 const ITEMS_AMOUNT = 4
+const STORE = process.env.DEPRECATED ? 'scope' : 'store'
 
 export default () =>
   class Complex extends React.Component {
@@ -17,7 +18,7 @@ export default () =>
       }
       let itemEls = []
       for (let i = 0; i < ITEMS_AMOUNT; i++) {
-        let items = this.scope[`items${i}`]
+        let items = this.props[STORE][`items${i}`]
         items = items || []
         if (!_.isArray(items)) items = [items]
         let names = items.map(i => i.name).join(',')

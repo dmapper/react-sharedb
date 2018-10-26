@@ -2,6 +2,8 @@ import React from 'react'
 import _ from 'lodash'
 import { isObservable } from '@nx-js/observer-util'
 
+const STORE = process.env.DEPRECATED ? 'scope' : 'store'
+
 export default () =>
   class Simple extends React.Component {
     constructor (props) {
@@ -12,7 +14,7 @@ export default () =>
     render () {
       // console.log('model', this.model.get())
       this.renderCount++
-      let { items = [] } = this.props.scope
+      let { items = [] } = this.props[STORE]
       // Handle situation when subscribing to one doc instead of query
       if (!_.isArray(items)) items = [items]
       let names = items.map(i => i.name).join(',')

@@ -20,3 +20,7 @@ export function initLocalCollection (collection) {
   semaphore.allowComponentSetter = false
   model.data[collection] = observable(model.data[collection])
 }
+
+export function isExtraQuery (queryParams) {
+  return queryParams.$count || queryParams.$aggregate
+}

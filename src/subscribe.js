@@ -7,9 +7,11 @@ import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
+import Value from './types/Value'
 import Batching from './Batching'
 import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
 import semaphore from './semaphore'
+import { isExtraQuery } from './util'
 import {
   observe,
   unobserve,
@@ -17,6 +19,10 @@ import {
   isObservable
 } from '@nx-js/observer-util'
 
+const STORE = 'store'
+const STORE_DEPRECATED = 'scope'
+const $STORE = '$' + STORE
+const $STORE_DEPRECATED = '$' + STORE_DEPRECATED
 const DEFAULT_COLLECTION = '$components'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
 const HELPER_METHODS_TO_BIND = ['get', 'at']
@@ -44,17 +50,11 @@ const getAutorunComponent = (Component, isStateless) => {
     constructor (props, ...args) {
       super(props, ...args)
 
-      // TODO: Remove this.scope alias.
-      //       Since ComponentWillMount became deprecated
-      //       we should not use this.scope alias anymore
-      //       and do all the initialization in the constructor
-      this.scope = props.scope
-
       // Mark subscription as used.
       // This is needed to track in later @subscribe's whether
-      // to create a new $scope or use the one received from props
+      // to create a new $STORE or use the one received from props
       // (in case when the outer component is @subscribe)
-      props.$scope.__used = true
+      props[$STORE].__used = true
 
       // let fn = _.debounce(() => {
       //   if (this.unmounted) return
@@ -105,9 +105,10 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
     componentWillMount () {
       this.model = this.getOrCreateModel()
       this.models = {}
-      // pipe the local model into props as $scope
-      this.models.$scope = this.model
-      this.scope = this.model.get()
+      // pipe the local model into props as $STORE
+      this.models[$STORE] = this.model
+      this.models[$STORE_DEPRECATED] = this.model // TODO: DEPRECATED
+      this[STORE] = this.model.get()
       this.autorunSubscriptions()
     }
 
@@ -124,10 +125,10 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       }
     }
 
-    // TODO: Maybe throw an error when passing used $scope to new @subscribe
+    // TODO: Maybe throw an error when passing used $STORE to new @subscribe
     getOrCreateModel () {
-      if (this.props.$scope && !this.props.$scope.__used) {
-        return this.props.$scope
+      if (this.props[$STORE] && !this.props[$STORE].__used) {
+        return this.props[$STORE]
       } else {
         let model = generateScopedModel()
         semaphore.allowComponentSetter = true
@@ -161,9 +162,11 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
         this.destroyItem(key, true, true)
       }
 
-      delete this.models.$scope
+      for (let key in this.models) {
+        delete this.models[key]
+      }
       delete this.models
-      delete this.scope
+      delete this[STORE]
       delete this.model // delete the actual model
     }
 
@@ -172,7 +175,8 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
       if (this.loaded) {
         return React.createElement(DecoratedComponent, {
           ...this.props,
-          scope: this.scope,
+          [STORE]: this[STORE],
+          [STORE_DEPRECATED]: this[STORE], // TODO: DEPRECATED
           ...this.models,
           ref: (...args) => {
             if (!DecoratedComponent.__isSubscription) {
@@ -257,8 +261,16 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
 
     // TODO: Maybe implement queueing. Research if race condition is present.
     initItem (key, params) {
-      let constructor = getItemConstructor(params)
-      let item = new constructor(this.model, key, params)
+      let constructor, subscriptionParams
+      let explicitType = params && params.__subscriptionType
+      if (explicitType) {
+        subscriptionParams = params.params
+        constructor = getItemConstructor(explicitType)
+      } else {
+        subscriptionParams = params
+        constructor = getItemConstructorFromParams(params)
+      }
+      let item = new constructor(this.model, key, subscriptionParams)
       // We have to use promises directly here rather than async/await,
       // because we have to prevent async execution of init() if it is not present.
       // But defining the function as `async` will make it run in the next event loop.
@@ -305,16 +317,43 @@ function generateScopedModel () {
   return model.scope(path)
 }
 
-function isExtraQuery (queryParams) {
-  return queryParams.$count || queryParams.$aggregate
+function getItemConstructor (type) {
+  switch (type) {
+    case 'Local':
+      return Local
+    case 'Doc':
+      return Doc
+    case 'Query':
+      return Query
+    case 'QueryExtra':
+      return QueryExtra
+    case 'Value':
+      return Value
+    default:
+      throw new Error('Unsupported subscription type: ' + type)
+  }
 }
 
-function getItemConstructor (subscription) {
-  if (typeof subscription === 'string') return Local
-  let [, params] = subscription
-  return typeof params === 'string' || !params
-    ? Doc
-    : isExtraQuery(params) ? QueryExtra : Query
+// TODO: DEPRECATED
+function getItemConstructorFromParams (params) {
+  console.warn(`
+    [react-sharedb] Implicit auto-guessing of subscription type is DEPRECATED and will be removed in a future version.
+    Please use explicit \`sub*()\` functions:
+      - subDoc(collection, docId)
+      - subQuery(collection, query)
+      - subLocal(localPath)
+      - subValue(value)    
+  `)
+  if (typeof params === 'string') return Local
+  if (_.isArray(params)) {
+    let [, queryOrId] = params
+    return typeof queryOrId === 'string' || !queryOrId
+      ? Doc
+      : isExtraQuery(queryOrId) ? QueryExtra : Query
+  }
+  throw new Error(
+    "Can't automatically determine subscription type from params: " + params
+  )
 }
 
 function getComputationName (index) {
@@ -355,7 +394,7 @@ for (let methodName of WARNING_SETTERS) {
     ) {
       throw new Error(
         `You can't use '${methodName.replace(/^_/, '')}' on component's ` +
-          `$scope root path. Use 'setEach' instead.`
+          `${$STORE} root path. Use 'setEach' instead.`
       )
     }
     return oldMethod.apply(this, arguments)

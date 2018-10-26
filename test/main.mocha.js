@@ -14,20 +14,42 @@ ReactWrapper.prototype.waitFor = function (selector) {
   return createWaitForElement(selector)(this)
 }
 
+const DEPRECATED = process.env.DEPRECATED
+
 let subscribe
 let serverModel
 let w
 let Simple
 let Complex
 let model
+let subDoc
+let subQuery
+let subLocal
+let subValue
 
-async function initSimple (...args) {
-  let initialProps = {}
-  if (_.isPlainObject(args[0])) {
-    initialProps = args[0]
-    args = args.slice(1)
+function convertToOldSubscribeParams (fn) {
+  return (...args) => {
+    let data = fn(...args)
+    let res = {}
+    for (let key in data) {
+      if (data[key] == null) continue
+      if (data[key].__subscriptionType) {
+        res[key] = data[key].params
+      } else {
+        throw new Error('No __subscriptionType specified')
+      }
+    }
+    return res
   }
-  let Subscribed = subscribe(...args)(Simple())
+}
+
+async function initSimple (initialProps, subscribeFn) {
+  if (typeof initialProps === 'function') {
+    subscribeFn = initialProps
+    initialProps = {}
+  }
+  if (DEPRECATED) subscribeFn = convertToOldSubscribeParams(subscribeFn)
+  let Subscribed = subscribe(subscribeFn)(Simple())
   let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Simple')
   w.getItems = function () {
@@ -53,13 +75,13 @@ function getSimpleItems (w) {
   return text.split(',')
 }
 
-async function initComplex (...args) {
-  let initialProps = {}
-  if (_.isPlainObject(args[0])) {
-    initialProps = args[0]
-    args = args.slice(1)
+async function initComplex (initialProps, subscribeFn) {
+  if (typeof initialProps === 'function') {
+    subscribeFn = initialProps
+    initialProps = {}
   }
-  let Subscribed = subscribe(...args)(Complex())
+  if (DEPRECATED) subscribeFn = convertToOldSubscribeParams(subscribeFn)
+  let Subscribed = subscribe(subscribeFn)(Complex())
   let w = mount(<Subscribed {...initialProps} />)
   await w.waitFor('.Complex')
   w.getItems = function () {
@@ -149,6 +171,10 @@ before(() => {
   model = require('../src').model
   Simple = require('./stubs/Simple')
   Complex = require('./stubs/Complex')
+  subValue = require('../src').subValue
+  subDoc = require('../src').subDoc
+  subQuery = require('../src').subQuery
+  subLocal = require('../src').subLocal
 })
 
 // Unmount component after each test
@@ -160,31 +186,31 @@ afterEach(() => {
 describe('Helpers', () => {
   it('test RPC', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
-    w = await initSimple(() => ({ items: ['users', alias(1)] }))
+    w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
     expect(w.items).to.include(alias(1))
     w.unmount()
 
     await serverModel.setAsync(`users.${alias(1)}.name`, 'Abrakadabra')
-    w = await initSimple(() => ({ items: ['users', alias(1)] }))
+    w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
     expect(w.items).to.include('Abrakadabra')
     w.unmount()
 
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
-    w = await initSimple(() => ({ items: ['users', alias(1)] }))
+    w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
     expect(w.items).to.include(alias(1))
   })
 })
 
 describe('Docs', () => {
   it('doc by id', async () => {
-    w = await initSimple(() => ({ items: ['users', alias(3)] }))
+    w = await initSimple(() => ({ items: subDoc('users', alias(3)) }))
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include(alias(3))
   })
 
   it('dynamic data update', async () => {
-    w = await initSimple(() => ({ items: ['users', alias(1)] }))
+    w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include(alias(1))
@@ -204,28 +230,30 @@ describe('Docs', () => {
 
 describe('Queries', () => {
   it('all collection', async () => {
-    w = await initSimple(() => ({ items: ['users', {}] }))
+    w = await initSimple(() => ({ items: subQuery('users', {}) }))
     expect(w.items)
       .to.have.lengthOf(5)
       .and.include.members(alias([1, 2, 3, 4, 5]))
   })
 
   it('parametrized 1', async () => {
-    w = await initSimple(() => ({ items: ['users', { color: 'blue' }] }))
+    w = await initSimple(() => ({
+      items: subQuery('users', { color: 'blue' })
+    }))
     expect(w.items)
       .to.have.lengthOf(2)
       .and.include.members(alias([1, 2]))
   })
 
   it('parametrized 2', async () => {
-    w = await initSimple(() => ({ items: ['users', { color: 'red' }] }))
+    w = await initSimple(() => ({ items: subQuery('users', { color: 'red' }) }))
     expect(w.items)
       .to.have.lengthOf(3)
       .and.include.members(alias([3, 4, 5]))
   })
 
   it('dynamic data update', async () => {
-    w = await initSimple(() => ({ items: ['users', { color: 'red' }] }))
+    w = await initSimple(() => ({ items: subQuery('users', { color: 'red' }) }))
     expect(w.items)
       .to.have.lengthOf(3)
       .and.include.members(alias([3, 4, 5]))
@@ -260,7 +288,7 @@ describe('Queries', () => {
 
   it('dynamic update of query param', async () => {
     w = await initSimple({ color: 'red' }, ({ color }) => ({
-      items: ['users', { color }]
+      items: subQuery('users', { color })
     }))
     expect(w.items)
       .to.have.lengthOf(3)
@@ -289,10 +317,10 @@ describe('Complex', () => {
       },
       ({ color0, color1, hasCar }) => {
         let res = {
-          items0: color0 && ['users', { color: color0 }],
-          items1: color1 && ['users', { color: color1 }]
+          items0: color0 && subQuery('users', { color: color0 }),
+          items1: color1 && subQuery('users', { color: color1 })
         }
-        if (hasCar) res.items2 = ['cars', 'test1_']
+        if (hasCar) res.items2 = subDoc('cars', 'test1_')
         return res
       }
     )
@@ -366,7 +394,7 @@ describe('Complex', () => {
 
 describe('Local', () => {
   it('should update data', async () => {
-    w = await initSimple(() => ({ items: '_page.document' }))
+    w = await initSimple(() => ({ items: subLocal('_page.document') }))
     expect(w.items).to.have.lengthOf(0)
     model.set('_page.document', { id: alias(1), name: alias(1) })
     expect(w.items)
@@ -389,7 +417,7 @@ describe('Local', () => {
 describe('Edge cases', () => {
   it('initially null document. Then update to create it.', async () => {
     let userId = alias(777)
-    w = await initSimple(() => ({ items: ['users', userId] }))
+    w = await initSimple(() => ({ items: subDoc('users', userId) }))
     expect(w.items).to.have.lengthOf(0)
     serverModel.add(`users`, {
       id: userId,
@@ -431,7 +459,7 @@ describe('Edge cases', () => {
   })
 
   it('ref NON existent local document and ensure reactivity', async () => {
-    w = await initSimple(() => ({ items: '_page.document' }))
+    w = await initSimple(() => ({ items: subLocal('_page.document') }))
     expect(w.items).to.have.lengthOf(0)
     await w.nextRender(() => {
       model.set('_page.document', { id: 'document', name: 'document' })
@@ -455,7 +483,7 @@ describe('Edge cases', () => {
 
   it('ref an existing local document and ensure reactivity', async () => {
     model.set('_page.document', { id: 'document', name: 'document' })
-    w = await initSimple(() => ({ items: '_page.document' }))
+    w = await initSimple(() => ({ items: subLocal('_page.document') }))
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include('document')
@@ -472,7 +500,7 @@ describe('Edge cases', () => {
 
   it('should render only when changing something which was rendered before', async () => {
     model.set('_page.document', { id: 'document', name: 'document' })
-    w = await initSimple(() => ({ items: '_page.document' }))
+    w = await initSimple(() => ({ items: subLocal('_page.document') }))
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include('document')
@@ -539,7 +567,7 @@ describe('Edge cases', () => {
       name: 'document',
       showColor: true
     })
-    w = await initSimple(() => ({ items: '_page.document' }))
+    w = await initSimple(() => ({ items: subLocal('_page.document') }))
     expect(w.items)
       .to.have.lengthOf(1)
       .and.include('document')

@@ -4,7 +4,7 @@
 
 ## What it does
 
-1. Brings real-time collaboration to React using ShareDB;
+1. Brings real-time collaboration to React using [ShareDB](https://github.com/share/sharedb);
 2. Uses [Racer](https://derbyjs.com/docs/derby-0.10/models) to add a `model`
    to your app to do any data manipulations;
 3. The `model` acts as a global singleton state, so you can use it as a

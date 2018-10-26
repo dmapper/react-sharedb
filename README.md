@@ -22,7 +22,7 @@
 `@subscribe` gives react component a personal local scope model, located at path `$components.<random_id>`.
 This model will be automatically cleared when the component is unmounted.
 
-#### Subscribe to data and use it in render()
+#### HOW TO: Subscribe to data and use it in render()
 
 `@subscribe` accepts a single argument -- `cb`, which receives `props` and must return the `subscriptions object`.
 
@@ -64,7 +64,7 @@ export default class Room extends React.Component {
 
 As seen from the example, you can combine multiple `@subscribe` one after another.
 
-#### Modify the data you subscribed to
+#### HOW TO: Modify the data you subscribed to
 
 The actual scoped model of the component is available as `this.props.$store`.
 Use it to modify the data. For the API to modify stuff refer to the [Racer documentation](https://derbyjs.com/docs/derby-0.10/models)

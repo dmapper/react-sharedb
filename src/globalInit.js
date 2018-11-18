@@ -5,6 +5,7 @@ const OBSERVABLE_COLLECTIONS = [
   '$connection',
   '$queries',
   '$components',
+  '$hooks',
   '_page',
   '_session'
 ]

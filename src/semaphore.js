@@ -1,3 +1,4 @@
 export default {
-  allowComponentSetter: false
+  allowComponentSetter: false,
+  ignoreCollectionObservableWarning: false
 }

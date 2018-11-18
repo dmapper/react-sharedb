@@ -15,9 +15,11 @@ export function observablePath (path) {
 }
 
 export function initLocalCollection (collection) {
+  semaphore.ignoreCollectionObservableWarning = true
   semaphore.allowComponentSetter = true
   model.set(`${collection}.__FOO`, 'hello')
   semaphore.allowComponentSetter = false
+  semaphore.ignoreCollectionObservableWarning = false
   model.data[collection] = observable(model.data[collection])
 }
 

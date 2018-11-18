@@ -1,15 +1,21 @@
-global.DEBUG = process.env.DEBUG || process.env.debug
+import './_globals'
 import React from 'react'
 import { expect } from 'chai'
-import { mount } from 'enzyme'
-import { createWaitForElement } from 'enzyme-wait'
+import Enzyme, { mount } from 'enzyme'
+import Adapter from 'enzyme-adapter-react-16'
+import { createWaitForElement } from '@oskarer/enzyme-wait'
+import { alias } from './util'
 import _ from 'lodash'
 import './_server'
 import waitForExpect from 'wait-for-expect'
+import TestRenderer from 'react-test-renderer'
 
 // import Simple from './stubs/Simple'
 
 import ReactWrapper from 'enzyme/build/ReactWrapper'
+
+Enzyme.configure({ adapter: new Adapter() })
+
 ReactWrapper.prototype.waitFor = function (selector) {
   return createWaitForElement(selector)(this)
 }
@@ -26,6 +32,7 @@ let subDoc
 let subQuery
 let subLocal
 let subValue
+let HooksComplex
 
 function convertToOldSubscribeParams (fn) {
   return (...args) => {
@@ -118,13 +125,103 @@ function getComplexItems (w) {
   return res
 }
 
-function alias (number) {
-  const name = n => `test${n}_`
-  if (_.isArray(number)) {
-    return number.map(n => name(n))
-  } else {
-    return name(number)
+async function initHooksComplex (initialProps = {}) {
+  let w = mount(<HooksComplex {...initialProps} />)
+  console.log('>>> 1')
+  await w.waitFor('.Complex')
+  console.log('>>> 2')
+  w.getItems = function () {
+    return getHooksComplexItems(this)
   }
+  Object.defineProperty(w, 'items', {
+    get: function () {
+      return this.getItems()
+    }
+  })
+  w.nextRender = function (...args) {
+    return hookNextRender(this, ...args)
+  }
+  w.renderSetProps = function (count, props) {
+    return renderSetProps(this, count, props)
+  }
+  return w
+}
+
+function getHooksComplexItems (w) {
+  let res = {}
+  w.find(`.items`).forEach(node => {
+    let name = node.prop('title')
+    res[name] = (node.text() || '').split(',')
+  })
+  return res
+}
+
+async function tInitHooksComplex (initialProps = {}) {
+  let testRenderer = TestRenderer.create(<HooksComplex {...initialProps} />)
+  let t = testRenderer.root
+  t.getItems = function () {
+    return tGetHooksComplexItems(this)
+  }
+  Object.defineProperty(t, 'items', {
+    get: function () {
+      return this.getItems()
+    }
+  })
+  t.nextRender = function (...args) {
+    return tNextRender(this, ...args)
+  }
+  t.renderSetProps = function (count, props) {
+    return renderSetProps(this, count, props)
+  }
+  return t
+}
+
+function tGetHooksComplexItems (t) {
+  let res = {}
+  t.findAllByProps({ className: 'items' }).forEach(node => {
+    let name = node.props.title
+    let text = (node.children && node.children[0]) || ''
+    res[name] = text.split(',')
+  })
+  return res
+}
+
+async function tNextRender (t, count = 1, fn) {
+  if (typeof count === 'function') {
+    fn = count
+    count = 1
+  }
+  let currentRender = t.findByProps({ className: 'Complex' }).props.title
+  if (!currentRender) throw new Error("Component didn't render")
+  currentRender = ~~currentRender
+  // console.log('>> current', currentRender)
+  let selector = { className: 'Complex', title: '' + (currentRender + count) }
+  typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
+  if (fn) fn()
+  let found = false
+  while (!found) {
+    try {
+      t.findByProps(selector)
+      found = true
+    } catch (e) {
+      await new Promise(cb => setTimeout(cb, 50))
+    }
+  }
+}
+
+async function hookNextRender (w, count = 1, fn) {
+  if (typeof count === 'function') {
+    fn = count
+    count = 1
+  }
+  let currentRender = w.find('.Complex').prop('title')
+  if (!currentRender) throw new Error("Component didn't render")
+  currentRender = ~~currentRender
+  // console.log('>> current', currentRender)
+  let selector = `.Complex[title='${currentRender + count}']`
+  typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
+  if (fn) fn()
+  await w.waitFor(selector)
 }
 
 async function renderSetProps (w, count, props) {
@@ -175,12 +272,12 @@ before(() => {
   subDoc = require('../src').subDoc
   subQuery = require('../src').subQuery
   subLocal = require('../src').subLocal
+  HooksComplex = require('./stubs/HooksComplex')
 })
 
 // Unmount component after each test
 afterEach(() => {
-  if (!w) return
-  w.unmount()
+  w && w.unmount && w.unmount()
 })
 
 describe('Helpers', () => {
@@ -455,7 +552,6 @@ describe('Edge cases', () => {
       .and.include('Abrakadabra')
     serverModel.del(`users.${userId}`)
     await w.nextRender()
-    w.unmount()
   })
 
   it('ref NON existent local document and ensure reactivity', async () => {
@@ -586,5 +682,50 @@ describe('Edge cases', () => {
       .to.have.lengthOf(1)
       .and.include('third')
     model.del('_page.document')
+  })
+})
+
+describe('Hooks', () => {
+  it('basic', async () => {
+    let items = [
+      'user',
+      'game1',
+      'game2',
+      'players1',
+      'players2',
+      'usersInGame1',
+      'usersInGame2'
+    ]
+    w = await tInitHooksComplex()
+    await w.nextRender(items.length * 2)
+
+    expect(Object.keys(w.items))
+      .to.have.lengthOf(items.length)
+      .and.include.members(items)
+
+    expect(w.items.user)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+
+    expect(w.items.game1)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+    expect(w.items.game2)
+      .to.have.lengthOf(1)
+      .and.include(alias(2))
+
+    expect(w.items.players1)
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
+    expect(w.items.players2)
+      .to.have.lengthOf(3)
+      .and.include.members(alias([1, 3, 5]))
+
+    expect(w.items.usersInGame1)
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
+    expect(w.items.usersInGame2)
+      .to.have.lengthOf(3)
+      .and.include.members(alias([1, 3, 5]))
   })
 })

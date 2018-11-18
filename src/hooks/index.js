@@ -18,7 +18,8 @@ export const useValue = generateUseItemOfType(subValue)
 
 function generateUseItemOfType (typeFn) {
   return (...args) => {
-    const forceUpdate = useForceUpdate()
+    // TODO: Remove commented out force update
+    // const forceUpdate = useForceUpdate()
     let $model = useMemo(() => generateScopedModel(), [])
     let hashedArgs = useMemo(() => JSON.stringify(args), args)
 
@@ -69,8 +70,13 @@ function generateUseItemOfType (typeFn) {
             // Reference the new item data
             item.refModel()
 
+            // TODO: Remove commented out force update
+            //       Force updating data seems to be not needed since the hook already
+            //       returns the observed data which the observer had tracked access to.
+            //       So the rerendering will happen automagically as soon as the .refModel()
+            //       does its job and puts the data in.
             // Force update data
-            forceUpdate()
+            // forceUpdate()
           })
         }
 
@@ -121,6 +127,7 @@ function generateScopedModel () {
   return $root.scope(path)
 }
 
+// TODO: Remove commented out force update
 function useForceUpdate () {
   const [tick, setTick] = useState(1)
   return () => {

@@ -33,6 +33,12 @@ let subQuery
 let subLocal
 let subValue
 let HooksComplex
+let HooksSimple
+let useDoc
+let useQuery
+let useLocal
+let useValue
+let globalTestRenderer
 
 function convertToOldSubscribeParams (fn) {
   return (...args) => {
@@ -125,40 +131,10 @@ function getComplexItems (w) {
   return res
 }
 
-async function initHooksComplex (initialProps = {}) {
-  let w = mount(<HooksComplex {...initialProps} />)
-  console.log('>>> 1')
-  await w.waitFor('.Complex')
-  console.log('>>> 2')
-  w.getItems = function () {
-    return getHooksComplexItems(this)
-  }
-  Object.defineProperty(w, 'items', {
-    get: function () {
-      return this.getItems()
-    }
-  })
-  w.nextRender = function (...args) {
-    return hookNextRender(this, ...args)
-  }
-  w.renderSetProps = function (count, props) {
-    return renderSetProps(this, count, props)
-  }
-  return w
-}
-
-function getHooksComplexItems (w) {
-  let res = {}
-  w.find(`.items`).forEach(node => {
-    let name = node.prop('title')
-    res[name] = (node.text() || '').split(',')
-  })
-  return res
-}
-
 async function tInitHooksComplex (initialProps = {}) {
-  let testRenderer = TestRenderer.create(<HooksComplex {...initialProps} />)
-  let t = testRenderer.root
+  let Component = HooksComplex()
+  globalTestRenderer = TestRenderer.create(<Component {...initialProps} />)
+  let t = globalTestRenderer.root
   t.getItems = function () {
     return tGetHooksComplexItems(this)
   }
@@ -186,16 +162,47 @@ function tGetHooksComplexItems (t) {
   return res
 }
 
+async function tInitHooksSimple (initialProps, useFn) {
+  if (typeof initialProps === 'function') {
+    useFn = initialProps
+    initialProps = {}
+  }
+  let Component = HooksSimple(useFn)
+  globalTestRenderer = TestRenderer.create(<Component {...initialProps} />)
+  let t = globalTestRenderer.root
+  t.getItems = function () {
+    return tGetSimpleItems(this)
+  }
+  Object.defineProperty(t, 'items', {
+    get: function () {
+      return this.getItems()
+    }
+  })
+  t.nextRender = function (...args) {
+    return tNextRender(this, ...args)
+  }
+  t.renderSetProps = function (count, props) {
+    return renderSetProps(this, count, props)
+  }
+  return t
+}
+
+function tGetSimpleItems (t) {
+  let node = t.findByProps({ className: 'items' })
+  let text = (node.children && node.children[0]) || ''
+  return text.split(',')
+}
+
 async function tNextRender (t, count = 1, fn) {
   if (typeof count === 'function') {
     fn = count
     count = 1
   }
-  let currentRender = t.findByProps({ className: 'Complex' }).props.title
+  let currentRender = t.findByProps({ className: 'root' }).props.title
   if (!currentRender) throw new Error("Component didn't render")
   currentRender = ~~currentRender
   // console.log('>> current', currentRender)
-  let selector = { className: 'Complex', title: '' + (currentRender + count) }
+  let selector = { className: 'root', title: '' + (currentRender + count) }
   typeof DEBUG !== 'undefined' && console.log('wait for:', selector)
   if (fn) fn()
   let found = false
@@ -204,7 +211,7 @@ async function tNextRender (t, count = 1, fn) {
       t.findByProps(selector)
       found = true
     } catch (e) {
-      await new Promise(cb => setTimeout(cb, 50))
+      await new Promise(cb => setTimeout(cb, 10))
     }
   }
 }
@@ -273,11 +280,23 @@ before(() => {
   subQuery = require('../src').subQuery
   subLocal = require('../src').subLocal
   HooksComplex = require('./stubs/HooksComplex')
+  HooksSimple = require('./stubs/HooksSimple')
+  useValue = require('../src').useValue
+  useDoc = require('../src').useDoc
+  useQuery = require('../src').useQuery
+  useLocal = require('../src').useLocal
 })
 
 // Unmount component after each test
-afterEach(() => {
-  w && w.unmount && w.unmount()
+afterEach(async () => {
+  if (w && w.unmount) {
+    w.unmount()
+    w = undefined
+  }
+  if (globalTestRenderer && globalTestRenderer.unmount) {
+    globalTestRenderer.unmount()
+    globalTestRenderer = undefined
+  }
 })
 
 describe('Helpers', () => {
@@ -685,7 +704,13 @@ describe('Edge cases', () => {
   })
 })
 
-describe('Hooks', () => {
+// ------------------------------------------------------------------------
+//   ╦ ╦╔═╗╔═╗╦╔═╔═╗
+//   ╠═╣║ ║║ ║╠╩╗╚═╗
+//   ╩ ╩╚═╝╚═╝╩ ╩╚═╝
+// ------------------------------------------------------------------------
+
+describe.only('Hooks. General', () => {
   it('basic', async () => {
     let items = [
       'user',
@@ -697,7 +722,7 @@ describe('Hooks', () => {
       'usersInGame2'
     ]
     w = await tInitHooksComplex()
-    await w.nextRender(items.length * 2)
+    await w.nextRender(items.length)
 
     expect(Object.keys(w.items))
       .to.have.lengthOf(items.length)
@@ -727,5 +752,35 @@ describe('Hooks', () => {
     expect(w.items.usersInGame2)
       .to.have.lengthOf(3)
       .and.include.members(alias([1, 3, 5]))
+  })
+})
+
+describe.only('Hooks. useDoc()', () => {
+  it('doc by id', async () => {
+    w = await tInitHooksSimple(() => useDoc('users', alias(3)))
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(3))
+  })
+
+  it('dynamic data update', async () => {
+    w = await tInitHooksSimple(() => useDoc('users', alias(1)))
+    await w.nextRender()
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+    let updateAndCheckName = async newName => {
+      serverModel.set(`users.${alias(1)}.name`, newName)
+      console.log('> model', model.get('users'))
+      await w.nextRender()
+      expect(w.items)
+        .to.have.lengthOf(1)
+        .and.include(newName)
+    }
+    for (let i in _.range(50)) {
+      await updateAndCheckName(`TestUpdate${i}_`)
+    }
+    await updateAndCheckName(alias(1))
   })
 })

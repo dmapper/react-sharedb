@@ -710,7 +710,7 @@ describe('Edge cases', () => {
 //   ╩ ╩╚═╝╚═╝╩ ╩╚═╝
 // ------------------------------------------------------------------------
 
-describe.only('Hooks. General', () => {
+describe('Hooks. General', () => {
   it('basic', async () => {
     let items = [
       'user',
@@ -755,7 +755,7 @@ describe.only('Hooks. General', () => {
   })
 })
 
-describe.only('Hooks. useDoc()', () => {
+describe('Hooks. useDoc()', () => {
   it('doc by id', async () => {
     w = await tInitHooksSimple(() => useDoc('users', alias(3)))
     await w.nextRender()

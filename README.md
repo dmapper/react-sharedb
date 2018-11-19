@@ -13,7 +13,7 @@
    rerendering happens whenever any `model` data you used in `render`
    changes.   
 
-## \[Hooks\] `use*()`
+## *\[Hooks\]* `use*()`
 
 ### `observer(FunctionalComponent)` HOF
 
@@ -47,7 +47,7 @@ Refer to the documentation of [`subLocal()`](#subLocal) below
 
 Refer to the documentation of [`subValue()`](#subValue) below
 
-### \[Hooks\] Example
+### *\[Hooks\]* Example
 
 ```js
 import React from 'react'
@@ -100,7 +100,7 @@ export default observer(function Game ({gameId}) {
 1. `useSubscribe(fns)`
 2. `<Suspense />` support
 
-## \[Classes\] HOC `@subscribe(cb)`
+## *\[Classes\]* HOC `@subscribe(cb)`
 
 `@subscribe` decorator is used to specify what you want to subscribe to.
 
@@ -183,7 +183,7 @@ export default class Room extends React.Component {
 }
 ```
 
-## \[Classes\] `sub*()` functions
+## *\[Classes\]* `sub*()` functions
 
 Use sub*() functions to define a particular subscription.
 
@@ -278,7 +278,7 @@ A constant value to assign to the local scoped model of the component.
 
 `value` \[String\] -- value to assign (any type)
 
-### \[Classes\] Example
+### *\[Classes\]* Example
 
 Below is an example of a simple app with 2 components:
 1. `Home` -- sets up my userId and renders `Room`

@@ -13,11 +13,41 @@
    rerendering happens whenever any `model` data you used in `render`
    changes.   
 
-## Usage
+## \[Hooks\] `use*()`
 
-### Hooks `use*()`
+### `observer(FunctionalComponent)` HOF
 
-#### Example
+Higher Order Function which makes your functional component rendering reactive.
+**You have to** wrap your functional components in it to be able to use `react-sharedb` hooks.
+
+```js
+import {observer, useDoc} from 'react-sharedb'
+export default observer(function User ({userId}) {
+  let [user, $user] = useDoc('users', userId)  
+  if (!user) return null // <Loading />
+  return (
+    <input value={user.name} onChange={e => $user.set('name', e.target.value)} />
+  )
+})
+```
+
+### `useDoc(collection, docId)`
+
+Refer to the documentation of [`subDoc()`](#subDoc) below
+
+### `useQuery(collection, query)`
+
+Refer to the documentation of [`subQuery()`](#subQuery) below
+
+### `useLocal(localPath)`
+
+Refer to the documentation of [`subLocal()`](#subLocal) below
+
+### `useValue(value)`
+
+Refer to the documentation of [`subValue()`](#subValue) below
+
+### \[Hooks\] Example
 
 ```js
 import React from 'react'
@@ -65,35 +95,19 @@ export default observer(function Game ({gameId}) {
 })
 ```
 
-#### `useDoc(collection, docId)`
-
-Refer to the documentation of [`subDoc()`](#subDoc) below
-
-#### `useQuery(collection, query)`
-
-Refer to the documentation of [`subQuery()`](#subQuery) below
-
-#### `useLocal(localPath)`
-
-Refer to the documentation of [`subLocal()`](#subLocal) below
-
-#### `useValue(value)`
-
-Refer to the documentation of [`subValue()`](#subValue) below
-
-#### TODO:
+### TODO:
 
 1. `useSubscribe(fns)`
 2. `<Suspense />` support
 
-### Classes. HOC `@subscribe(cb)`
+## \[Classes\] HOC `@subscribe(cb)`
 
 `@subscribe` decorator is used to specify what you want to subscribe to.
 
 `@subscribe` gives react component a personal local scope model, located at path `$components.<random_id>`.
 This model will be automatically cleared when the component is unmounted.
 
-#### HOW TO: Subscribe to data and use it in render()
+### HOW TO: Subscribe to data and use it in render()
 
 `@subscribe` accepts a single argument -- `cb`, which receives `props` and must return the `subscriptions object`.
 
@@ -135,7 +149,7 @@ export default class Room extends React.Component {
 
 As seen from the example, you can combine multiple `@subscribe` one after another.
 
-#### HOW TO: Modify the data you subscribed to
+### HOW TO: Modify the data you subscribed to
 
 The actual scoped model of the component is available as `this.props.$store`.
 Use it to modify the data. For the API to modify stuff refer to the [Racer documentation](https://derbyjs.com/docs/derby-0.10/models)
@@ -169,12 +183,12 @@ export default class Room extends React.Component {
 }
 ```
 
-### `sub*()` functions
+## \[Classes\] `sub*()` functions
 
 Use sub*() functions to define a particular subscription.
 
 <a name="subDoc"></a>
-#### `subDoc(collection, docId)`
+### `subDoc(collection, docId)`
 
 Subscribe to a particular document.
 You'll receive the document data as `props.store.{key}`
@@ -191,7 +205,7 @@ Example:
 ```
 
 <a name="subQuery"></a>
-#### `subQuery(collection, query)`
+### `subQuery(collection, query)`
 
 Subscribe to the Mongo query.
 You'll receive the docuents as an array: `props.store.{key}`
@@ -224,7 +238,7 @@ for (let user of usersInRoom) {
 ```
 
 <a name="subLocal"></a>
-#### `subLocal(localPath)`
+### `subLocal(localPath)`
 
 Subscribe to the data you already have in your local model by path.
 You'll receive the data on that path as `props.store.{key}`
@@ -258,13 +272,13 @@ const Sidebar = subscribe(props => ({
 ```
 
 <a name="subValue"></a>
-#### `subValue(value)`
+### `subValue(value)`
 
 A constant value to assign to the local scoped model of the component.
 
 `value` \[String\] -- value to assign (any type)
 
-## Example
+### \[Classes\] Example
 
 Below is an example of a simple app with 2 components:
 1. `Home` -- sets up my userId and renders `Room`

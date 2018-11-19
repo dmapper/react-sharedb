@@ -4,7 +4,7 @@ import _ from 'lodash'
 
 export default useFn => {
   let renderCount = 0
-  return observer(({ props }) => {
+  return observer(props => {
     useLayoutEffect(() => {
       renderCount = 0
     }, [])

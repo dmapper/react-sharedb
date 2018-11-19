@@ -15,7 +15,78 @@
 
 ## Usage
 
-### HOC `@subscribe(cb)`
+### Hooks `use*()`
+
+#### Example
+
+```js
+import React from 'react'
+import {useDoc, useQuery, useLocal, useValue, useSubscribe} from 'react-sharedb'
+
+export function Game ({gameId}) {
+  let [secret, $secret] = useValue('Game Secret Password')
+  let [userId, $userId] = useLocal('_session.userId')
+  let [user, $user] = useDoc('users', userId)
+  let [game, $game] = useDoc('games', gameId)
+  if (!(game && user)) return null // <Loading />
+  
+  let [players, $players] = useQuery('players', {_id: {$in: game.playerIds}})
+  if (!players) return null // <Loading />
+  
+  let [users, $users] = useQuery('users', {_id: {$in: players.map(i => i.userId)}})
+  if (!users) return null // <Loading />
+  
+  function updateSecret (event) {
+    $secret.set(event.target.value)
+  }
+  
+  function updateName (event) {
+    $user.set('name', event.target.value)
+  }
+  
+  return (
+    <div>
+      <label>
+        Secret:
+        <input type='text' value={code} onChange={updateSecret} />
+      </label>
+    
+      <label>
+        My User Name:
+        <input type='text' value={user.name} onChange={updateName} />
+      </label>
+      
+      <h1>Game {game.title}</h1>
+      
+      <h2>Users in game:</h2>
+      <p>{users.map(i => i.name).join(', ')}</p>
+    </div>
+  )
+}
+```
+
+#### `useDoc(collection, docId)`
+
+Refer to the documentation of ```subDoc()``` below
+
+#### `useQuery(collection, query)`
+
+Refer to the documentation of ```subQuery()``` below
+
+#### `useLocal(localPath)`
+
+Refer to the documentation of ```subLocal()``` below
+
+#### `useValue(value)`
+
+Refer to the documentation of ```subValue()``` below
+
+#### TODO:
+
+1. `useSubscribe(fns)`
+2. `<Suspense />` support
+
+### Classes. HOC `@subscribe(cb)`
 
 `@subscribe` decorator is used to specify what you want to subscribe to.
 

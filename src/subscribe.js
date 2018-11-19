@@ -405,7 +405,10 @@ for (let methodName of WARNING_SETTERS) {
 let oldUpdateCollectionData = RacerLocalDoc.prototype._updateCollectionData
 RacerLocalDoc.prototype._updateCollectionData = function () {
   if (this.data) this.data = observable(this.data)
-  if (!isObservable(this.collectionData)) {
+  if (
+    !semaphore.ignoreCollectionObservableWarning &&
+    !isObservable(this.collectionData)
+  ) {
     console.warn(
       `[react-sharedb] Local collection "${this
         .collectionName}" is not initialized to be observable. ` +

@@ -8,7 +8,7 @@ export default () =>
   class Simple extends React.Component {
     constructor (props) {
       super(props)
-      this.renderCount = 0
+      this.renderCount = -1
     }
 
     render () {

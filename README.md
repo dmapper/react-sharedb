@@ -21,9 +21,9 @@
 
 ```js
 import React from 'react'
-import {useDoc, useQuery, useLocal, useValue, useSubscribe} from 'react-sharedb'
+import {observer, useDoc, useQuery, useLocal, useValue} from 'react-sharedb'
 
-export function Game ({gameId}) {
+export default observer(function Game ({gameId}) {
   let [secret, $secret] = useValue('Game Secret Password')
   let [userId, $userId] = useLocal('_session.userId')
   let [user, $user] = useDoc('users', userId)
@@ -62,7 +62,7 @@ export function Game ({gameId}) {
       <p>{users.map(i => i.name).join(', ')}</p>
     </div>
   )
-}
+})
 ```
 
 #### `useDoc(collection, docId)`

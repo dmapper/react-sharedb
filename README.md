@@ -67,19 +67,19 @@ export default observer(function Game ({gameId}) {
 
 #### `useDoc(collection, docId)`
 
-Refer to the documentation of ```subDoc()``` below
+Refer to the documentation of [`subDoc()`](#subDoc) below
 
 #### `useQuery(collection, query)`
 
-Refer to the documentation of ```subQuery()``` below
+Refer to the documentation of [`subQuery()`](#subQuery) below
 
 #### `useLocal(localPath)`
 
-Refer to the documentation of ```subLocal()``` below
+Refer to the documentation of [`subLocal()`](#subLocal) below
 
 #### `useValue(value)`
 
-Refer to the documentation of ```subValue()``` below
+Refer to the documentation of [`subValue()`](#subValue) below
 
 #### TODO:
 
@@ -173,6 +173,7 @@ export default class Room extends React.Component {
 
 Use sub*() functions to define a particular subscription.
 
+<a name="subDoc"></a>
 #### `subDoc(collection, docId)`
 
 Subscribe to a particular document.
@@ -189,6 +190,7 @@ Example:
 }))
 ```
 
+<a name="subQuery"></a>
 #### `subQuery(collection, query)`
 
 Subscribe to the Mongo query.
@@ -221,6 +223,7 @@ for (let user of usersInRoom) {
 } 
 ```
 
+<a name="subLocal"></a>
 #### `subLocal(localPath)`
 
 Subscribe to the data you already have in your local model by path.
@@ -254,6 +257,7 @@ const Sidebar = subscribe(props => ({
   sidebarOpened ? <p>Sidebar</p> : null
 ```
 
+<a name="subValue"></a>
 #### `subValue(value)`
 
 A constant value to assign to the local scoped model of the component.

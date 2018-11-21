@@ -29,12 +29,13 @@ function generateUseItemOfType (typeFn) {
     // TODO: Remove commented out force update
     // const forceUpdate = useForceUpdate()
     let $model = useMemo(() => generateScopedModel(), [])
+
     let hashedArgs = useMemo(() => JSON.stringify(args), args)
 
     const cancelInitRef = useRef()
     const destructorsRef = useRef([])
     const didMountRef = useRef(false)
-    const didSyncInitRef = useRef(false)
+    const didInitRef = useRef(false)
 
     useUnmount(() => {
       if (cancelInitRef.current) cancelInitRef.current.value = true
@@ -78,6 +79,7 @@ function generateUseItemOfType (typeFn) {
           destructorsRef.current.push(destroySelf)
 
           // Reference the new item data
+          didInitRef.current = true
           item.refModel()
 
           // TODO: Remove commented out force update
@@ -98,15 +100,7 @@ function generateUseItemOfType (typeFn) {
     })
 
     // In case the data can be retrieved synchronously, get it right away
-    if (isSync && !didSyncInitRef.current) {
-      // We can't use didMountRef here since in future we might
-      // change `useLayoutEffect` to `useEffect`.
-      // And in concurrent react rendering mode this might lead to race conditions
-      // (it's not clear whether it will lead to race condition or not, need to research it).
-      // For now just use a separate ref to track this.
-      didSyncInitRef.current = true
-      initItem()
-    }
+    if (isSync && !didInitRef.current) initItem()
 
     useLayoutEffect(
       () => {
@@ -120,8 +114,15 @@ function generateUseItemOfType (typeFn) {
       [hashedArgs]
     )
 
-    // Return data through the object key to let observer know that the data was accessed
-    return [$collection.get()[$model.leaf()], $model]
+    // In any situation force access data through the object key to let observer know that the data was accessed
+    let data = $collection.get()[$model.leaf()]
+    return [
+      // Initialize async item as `null`
+      // This way the strict `value === null` check can be used to determine
+      // precisely whether the subscribe has finished executing
+      isSync || didInitRef.current ? data : null,
+      $model
+    ]
   }
 }
 

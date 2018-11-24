@@ -1,5 +1,5 @@
 // ref: https://github.com/mobxjs/mobx-react-lite/blob/master/src/observer.ts
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useLayoutEffect, useMemo, useState } from 'react'
 import { observe, unobserve } from '@nx-js/observer-util'
 import { batching } from '../subscribe'
 
@@ -43,6 +43,7 @@ function useForceUpdate () {
   }
 }
 
+// TODO: Might change to just `useEffect` in future. Don't know which one fits here better yet.
 function useUnmount (fn) {
-  useEffect(() => fn, [])
+  useLayoutEffect(() => fn, [])
 }

@@ -29,6 +29,7 @@ export const useValue = generateUseItemOfType(subValue)
 
 function generateUseItemOfType (typeFn) {
   let isSync = typeFn === subLocal || typeFn === subValue
+  let useDymamic = isSync ? useSync : useAsync
   return (...args) => {
     let $model = useMemo(() => generateScopedModel(), [])
 
@@ -36,7 +37,6 @@ function generateUseItemOfType (typeFn) {
 
     const cancelInitRef = useRef()
     const destructorsRef = useRef([])
-    const didMountRef = useRef(false)
     const didInitRef = useRef(false)
 
     useUnmount(() => {
@@ -111,20 +111,7 @@ function generateUseItemOfType (typeFn) {
       }
     }, [])
 
-    // In case the data can be retrieved synchronously, get it right away
-    if (isSync && !didInitRef.current) initItem(params)
-
-    useLayoutEffect(
-      () => {
-        // In case the result was retrieved synchronously, don't init again
-        if (isSync && !didMountRef.current) {
-          didMountRef.current = true
-          return
-        }
-        initItem(params)
-      },
-      [hashedArgs]
-    )
+    useDymamic(() => initItem(params), [hashedArgs])
 
     // In any situation force access data through the object key to let observer know that the data was accessed
     let data = $collection.get()[$model.leaf()]
@@ -195,4 +182,32 @@ function useUnmount (fn) {
 function generateScopedModel () {
   let path = `${DEFAULT_COLLECTION}.${$root.id()}`
   return $root.scope(path)
+}
+
+function useSync (fn, inputs) {
+  useMemo(() => {
+    fn()
+  }, inputs)
+}
+
+function useAsync (fn, inputs) {
+  useLayoutEffect(() => {
+    fn()
+  }, inputs)
+}
+
+// TODO: Might be useful in future as a sync alternative to useEffect
+function useSyncEffect (fn, inputs) {
+  let prevCleanup = useRef()
+  useMemo(() => {
+    batching.batch(() => {
+      prevCleanup.current && prevCleanup.current()
+      prevCleanup.current = fn()
+    })
+  }, inputs)
+  useUnmount(() => {
+    batching.batch(() => {
+      prevCleanup.current && prevCleanup.current()
+    })
+  })
 }

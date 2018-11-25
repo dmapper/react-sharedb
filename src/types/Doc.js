@@ -56,6 +56,8 @@ export default class Doc extends Base {
     // remove query listeners
     for (let listener of this.listeners) {
       listener.ee.removeListener(listener.eventName, listener.fn)
+      delete listener.ee
+      delete listener.fn
     }
     delete this.listeners
   }

@@ -7,7 +7,7 @@ import {
   useCallback
 } from 'react'
 import Doc from '../types/Doc'
-import Query from '../types/Query'
+import Query, { getIdsName } from '../types/Query'
 import QueryExtra from '../types/QueryExtra'
 import Local from '../types/Local'
 import Value from '../types/Value'
@@ -26,8 +26,6 @@ export const useValue = generateUseItemOfType(subValue)
 function generateUseItemOfType (typeFn) {
   let isSync = typeFn === subLocal || typeFn === subValue
   return (...args) => {
-    // TODO: Remove commented out force update
-    // const forceUpdate = useForceUpdate()
     let $model = useMemo(() => generateScopedModel(), [])
 
     let hashedArgs = useMemo(() => JSON.stringify(args), args)
@@ -44,11 +42,29 @@ function generateUseItemOfType (typeFn) {
       $model.destroy()
     })
 
-    const initItem = useCallback(() => {
+    const params = useMemo(() => typeFn(...args), [hashedArgs])
+    const collectionName = useMemo(
+      () => (isQuery(params) ? getCollectionName(params) : undefined),
+      [hashedArgs]
+    )
+
+    // For Query and QueryExtra return the scoped model targeting the actual collection path.
+    // This is much more useful since you can use that use this returned model
+    // to update items with: $queryCollection.at(itemId).set('title', 'FooBar')
+    const $queryCollection = useMemo(
+      () => (collectionName ? $root.scope(collectionName) : undefined),
+      [collectionName]
+    )
+
+    // TODO: Maybe enable returning array of ids for Query in future.
+    //       See below for more info.
+    // const idsName = useMemo(() => (
+    //   hasIds(params) ? getIdsName($model.leaf()) : undefined
+    // ), [])
+
+    const initItem = useCallback(params => {
       // Cancel previous initialization if it is active
       if (cancelInitRef.current) cancelInitRef.current.value = true
-
-      let params = typeFn(...args)
 
       let item = getItemFromParams(params, $model.leaf())
       let destroySelf = () => {
@@ -81,14 +97,6 @@ function generateUseItemOfType (typeFn) {
           // Reference the new item data
           didInitRef.current = true
           item.refModel()
-
-          // TODO: Remove commented out force update
-          //       Force updating data seems to be not needed since the hook already
-          //       returns the observed data which the observer had tracked access to.
-          //       So the rerendering will happen automagically as soon as the .refModel()
-          //       does its job and puts the data in.
-          // Force update data
-          // forceUpdate()
         })
       }
 
@@ -97,10 +105,10 @@ function generateUseItemOfType (typeFn) {
       } else {
         item.init().then(finishInit)
       }
-    })
+    }, [])
 
     // In case the data can be retrieved synchronously, get it right away
-    if (isSync && !didInitRef.current) initItem()
+    if (isSync && !didInitRef.current) initItem(params)
 
     useLayoutEffect(
       () => {
@@ -109,21 +117,47 @@ function generateUseItemOfType (typeFn) {
           didMountRef.current = true
           return
         }
-        initItem()
+        initItem(params)
       },
       [hashedArgs]
     )
 
     // In any situation force access data through the object key to let observer know that the data was accessed
     let data = $collection.get()[$model.leaf()]
+
     return [
       // Initialize async item as `null`
       // This way the strict `value === null` check can be used to determine
       // precisely whether the subscribe has finished executing
       isSync || didInitRef.current ? data : null,
-      $model
+
+      // Query, QueryExtra: return scoped model to collection path.
+      // Everything else: return the 'hooks.<randomHookId>' scoped model.
+      $queryCollection || $model
+
+      // TODO: Maybe enable returning array of ids for Query in future.
+      //       The potential drawback is that the rendering might fire twice
+      //       when the subscribed data changes (items added or removed from query).
+      //       This needs to be tested before enabling.
+      // Return ids array as the third parameter for useQuery
+      // idsName ? res.push($collection.get()[idsName]) : undefined
     ]
   }
+}
+
+function getCollectionName (params) {
+  return params && params.params && params.params[0]
+}
+
+function isQuery (params) {
+  let explicitType = params && params.__subscriptionType
+  return explicitType === 'Query' || explicitType === 'QueryExtra'
+}
+
+// TODO: Maybe enable returning array of ids for Query in future.
+function hasIds (params) {
+  let explicitType = params && params.__subscriptionType
+  return explicitType === 'Query'
 }
 
 function getItemFromParams (params, key) {
@@ -157,12 +191,4 @@ function useUnmount (fn) {
 function generateScopedModel () {
   let path = `${DEFAULT_COLLECTION}.${$root.id()}`
   return $root.scope(path)
-}
-
-// TODO: Remove commented out force update
-function useForceUpdate () {
-  const [tick, setTick] = useState(1)
-  return () => {
-    setTick(tick + 1)
-  }
 }

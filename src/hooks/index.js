@@ -15,6 +15,10 @@ import { batching } from '../subscribe'
 import { subDoc, subLocal, subValue, subQuery } from '../subscriptionTypeFns'
 import $root from '@react-sharedb/model'
 
+export function useModel (path) {
+  return $root.scope(path)
+}
+
 const DEFAULT_COLLECTION = '$hooks'
 const $collection = $root.scope(DEFAULT_COLLECTION)
 

@@ -16,7 +16,7 @@ import { subDoc, subLocal, subValue, subQuery } from '../subscriptionTypeFns'
 import $root from '@react-sharedb/model'
 
 export function useModel (path) {
-  return $root.scope(path)
+  return useMemo(() => $root.scope(path), [path])
 }
 
 const DEFAULT_COLLECTION = '$hooks'

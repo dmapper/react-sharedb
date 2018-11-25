@@ -47,6 +47,11 @@ Refer to the documentation of [`subLocal()`](#subLocal) below
 
 Refer to the documentation of [`subValue()`](#subValue) below
 
+### `useModel(path)`
+
+Return a model scoped to `path` (memoized by the `path` argument).
+If `path` is not provided, returns the model scoped to the root path.
+
 ### *\[Hooks\]* Example
 
 ```js

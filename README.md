@@ -52,6 +52,46 @@ Refer to the documentation of [`subValue()`](#subValue) below
 Return a model scoped to `path` (memoized by the `path` argument).
 If `path` is not provided, returns the model scoped to the root path.
 
+```js
+import React from 'react'
+import {render} from 'react-dom'
+import {observer, useModel, useLocal} from 'react-sharedb'
+
+const Main = observer(() => {
+  return (
+    <div style={{display: 'flex'}}>
+      <Content />
+      <Sidebar />
+    </div>
+  )
+})
+
+const Content = observer(() => {
+  let $showSidebar = useModel('_page.Sidebar.show')
+
+  // sidebar will be opened without triggering rerendering of the <Content /> component (this component)
+  return (
+    <div>
+      <p>I am Content</p>
+      <button onClick={() => $showSidebar.setDiff(true)}>Open Sidebar</button>
+    </div>
+  )
+})
+
+const Sidebar = observer(() => {
+  let [show, $show] = useLocal('_page.Sidebar.show')
+  if (!show) return null
+  return (
+    <div>
+      <p>I am Sidebar</p>
+      <button onClick={() => $show.del()}>Close</button>
+    </div>
+  )
+})
+
+render(<Main />, document.body.appendChild(document.createElement('div')))
+```
+
 ### *\[Hooks\]* Example
 
 ```js

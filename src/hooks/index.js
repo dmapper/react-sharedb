@@ -19,8 +19,8 @@ export function useModel (...args) {
   return useMemo(() => $root.scope(...args), [...args])
 }
 
-const DEFAULT_COLLECTION = '$hooks'
-const $collection = $root.scope(DEFAULT_COLLECTION)
+const HOOKS_COLLECTION = '$hooks'
+const $hooks = $root.scope(HOOKS_COLLECTION)
 
 export const useDoc = generateUseItemOfType(subDoc)
 export const useQuery = generateUseItemOfType(subQuery)
@@ -28,49 +28,31 @@ export const useLocal = generateUseItemOfType(subLocal)
 export const useValue = generateUseItemOfType(subValue)
 
 function generateUseItemOfType (typeFn) {
+  let isQuery = typeFn === subQuery
   let isSync = typeFn === subLocal || typeFn === subValue
   let useDymamic = isSync ? useSync : useAsync
   return (...args) => {
-    let $model = useMemo(() => generateScopedModel(), [])
-
+    let hookId = useMemo(() => $root.id(), [])
     let hashedArgs = useMemo(() => JSON.stringify(args), args)
 
+    const initsCountRef = useRef(0)
     const cancelInitRef = useRef()
     const destructorsRef = useRef([])
-    const didInitRef = useRef(false)
 
     useUnmount(() => {
       if (cancelInitRef.current) cancelInitRef.current.value = true
       destructorsRef.current.forEach(destroy => destroy())
       destructorsRef.current.length = 0
-      $model.destroy()
+      $hooks.destroy(hookId)
     })
 
     const params = useMemo(() => typeFn(...args), [hashedArgs])
-    const collectionName = useMemo(
-      () => (isQuery(params) ? getCollectionName(params) : undefined),
-      [hashedArgs]
-    )
-
-    // For Query and QueryExtra return the scoped model targeting the actual collection path.
-    // This is much more useful since you can use that use this returned model
-    // to update items with: $queryCollection.at(itemId).set('title', 'FooBar')
-    const $queryCollection = useMemo(
-      () => (collectionName ? $root.scope(collectionName) : undefined),
-      [collectionName]
-    )
-
-    // TODO: Maybe enable returning array of ids for Query in future.
-    //       See below for more info.
-    // const idsName = useMemo(() => (
-    //   hasIds(params) ? getIdsName($model.leaf()) : undefined
-    // ), [])
 
     const initItem = useCallback(params => {
       // Cancel previous initialization if it is active
       if (cancelInitRef.current) cancelInitRef.current.value = true
 
-      let item = getItemFromParams(params, $model.leaf())
+      let item = getItemFromParams(params, hookId)
       let destroySelf = () => {
         item.unrefModel()
         item.destroy()
@@ -98,8 +80,10 @@ function generateUseItemOfType (typeFn) {
           destructorsRef.current.length = 0
           destructorsRef.current.push(destroySelf)
 
+          // Mark that initialization completed
+          initsCountRef.current++
+
           // Reference the new item data
-          didInitRef.current = true
           item.refModel()
         })
       }
@@ -113,14 +97,40 @@ function generateUseItemOfType (typeFn) {
 
     useDymamic(() => initItem(params), [hashedArgs])
 
+    // ----- model -----
+
+    // For Query and QueryExtra return the scoped model targeting the actual collection path.
+    // This is much more useful since you can use that use this returned model
+    // to update items with: $queryCollection.at(itemId).set('title', 'FooBar')
+    const collectionName = useMemo(
+      () => (isQuery ? getCollectionName(params) : undefined),
+      [hashedArgs]
+    )
+    const $queryCollection = useMemo(
+      () => (isQuery ? $root.scope(collectionName) : undefined),
+      [collectionName]
+    )
+
+    // For Doc, Local, Value return the model scoped to the hook path
+    // But only after the initialization actually finished, otherwise
+    // the ORM won't be able to properly resolve the path which was not referenced yet
+    const $model = useMemo(
+      () => (!isQuery && initsCountRef.current ? $hooks.at(hookId) : undefined),
+      [initsCountRef.current]
+    )
+
+    // ----- data -----
+
     // In any situation force access data through the object key to let observer know that the data was accessed
-    let data = $collection.get()[$model.leaf()]
+    let data = $hooks.get()[hookId]
+
+    // ----- return -----
 
     return [
       // Initialize async item as `null`
       // This way the strict `value === null` check can be used to determine
       // precisely whether the subscribe has finished executing
-      isSync || didInitRef.current ? data : null,
+      initsCountRef.current ? data : null,
 
       // Query, QueryExtra: return scoped model to collection path.
       // Everything else: return the 'hooks.<randomHookId>' scoped model.
@@ -131,18 +141,20 @@ function generateUseItemOfType (typeFn) {
       //       when the subscribed data changes (items added or removed from query).
       //       This needs to be tested before enabling.
       // Return ids array as the third parameter for useQuery
-      // idsName ? res.push($collection.get()[idsName]) : undefined
+      // idsName ? res.push($hooks.get()[idsName]) : undefined
     ]
+
+    // TODO: Maybe enable returning array of ids for Query in future.
+    //       See below for more info.
+    // ----- ids -----
+    // const idsName = useMemo(() => (
+    //   hasIds(params) ? getIdsName(hookId) : undefined
+    // ), [])
   }
 }
 
 function getCollectionName (params) {
   return params && params.params && params.params[0]
-}
-
-function isQuery (params) {
-  let explicitType = params && params.__subscriptionType
-  return explicitType === 'Query' || explicitType === 'QueryExtra'
 }
 
 // TODO: Maybe enable returning array of ids for Query in future.
@@ -155,7 +167,7 @@ function getItemFromParams (params, key) {
   let explicitType = params && params.__subscriptionType
   let subscriptionParams = params.params
   let constructor = getItemConstructor(explicitType)
-  return new constructor($collection, key, subscriptionParams)
+  return new constructor($hooks, key, subscriptionParams)
 }
 
 function getItemConstructor (type) {
@@ -177,11 +189,6 @@ function getItemConstructor (type) {
 
 function useUnmount (fn) {
   useLayoutEffect(() => fn, [])
-}
-
-function generateScopedModel () {
-  let path = `${DEFAULT_COLLECTION}.${$root.id()}`
-  return $root.scope(path)
 }
 
 function useSync (fn, inputs) {

@@ -26,3 +26,7 @@ export function initLocalCollection (collection) {
 export function isExtraQuery (queryParams) {
   return queryParams.$count || queryParams.$aggregate
 }
+
+export function clone (data) {
+  return JSON.parse(JSON.stringify(data))
+}

@@ -4,7 +4,7 @@ export { default as model, default as $root } from '@react-sharedb/model'
 export { subscribe }
 export const batchModel = batching.batch.bind(batching)
 export { default as _semaphore } from './semaphore'
-export { initLocalCollection } from './util'
+export { initLocalCollection, clone } from './util'
 export {
   subLocal,
   subDoc,

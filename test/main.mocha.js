@@ -332,40 +332,48 @@ if (!DEPRECATED) {
     })
   })
 
-  if (HOOKS) {
-    describe(PREFIX + 'Api', () => {
-      it('should get data from the api', async () => {
-        let w = await initSimple(() => ({
-          items: subApi(
-            '_page.document',
-            index =>
-              new Promise(
-                resolve =>
-                  setTimeout(() => {
-                    resolve({ id: alias(index), name: alias(index) })
-                  }),
-                500
-              ),
-            [1]
-          )
-        }))
-        await w.nextRender({ index: 1 })
-        expect(w.items)
-          .to.have.lengthOf(1)
-          .and.include(alias(1))
-        model.setDiff('_page.document.name', alias(2))
-        await w.nextRender({ index: 2 })
-        expect(w.items)
-          .to.have.lengthOf(1)
-          .and.include(alias(2))
-      })
+  describe(PREFIX + 'Api', () => {
+    it('should get data from the api', async () => {
+      let w = await initSimple(() => ({
+        items: subApi(
+          '_page.document',
+          index =>
+            new Promise(
+              resolve =>
+                setTimeout(() => {
+                  resolve({ id: alias(index), name: alias(index) })
+                }),
+              500
+            ),
+          [1]
+        )
+      }))
+      let count = HOOKS ? 1 : 0
+      await w.nextRender({ index: count++ })
+      expect(w.items)
+        .to.have.lengthOf(1)
+        .and.include(alias(1))
+      model.setDiff('_page.document.name', alias(2))
+      await w.nextRender({ index: count++ })
+      expect(w.items)
+        .to.have.lengthOf(1)
+        .and.include(alias(2))
+    })
 
+    // TODO: Enzyme unmount doesn't trigger destruction for some reason.
+    //       For now run this test only for hooks since they
+    //       use react-test-renderer
+    if (HOOKS) {
       it('should remove local path after destroy', async () => {
         await new Promise(resolve => setTimeout(resolve, 500))
         expect(model.get('_page.document')).to.be.an('undefined')
       })
-    })
-  }
+    } else {
+      it('[cleanup] force clear _page.document from prev test', () => {
+        model.del('_page.document')
+      })
+    }
+  })
 }
 
 describe(PREFIX + 'Edge cases', () => {

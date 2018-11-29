@@ -9,7 +9,7 @@ export default class Local extends Base {
   }
 
   refModel () {
-    if (!this.model) return
+    if (this.cancelled) return
     let { key } = this
     observablePath(this.path)
     this.model.ref(key, model.scope(this.path))

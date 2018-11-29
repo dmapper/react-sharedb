@@ -19,7 +19,7 @@ export default class Query extends Base {
   }
 
   refModel () {
-    if (!this.model) return
+    if (this.cancelled) return
     let { key } = this
     this.subscription.ref(this.model.at(key))
     observablePath(this.model.path(key))
@@ -37,9 +37,7 @@ export default class Query extends Base {
     this.subscription = model.query(collection, query)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
-        if (!this.model) {
-          return reject('[react-sharedb] Query already destroyed')
-        }
+        if (this.cancelled) return
         if (err) return reject(err)
         // observe ids and extra
         let path = `$queries.${this.subscription.hash}`

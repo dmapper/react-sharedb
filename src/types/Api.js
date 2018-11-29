@@ -18,7 +18,7 @@ export default class Local extends Base {
   }
 
   refModel () {
-    if (!this.model) return
+    if (this.cancelled) return
     let { key } = this
     if (this.path) {
       model.setDiff(this.path, this.data)
@@ -42,14 +42,14 @@ export default class Local extends Base {
   async _fetch () {
     if (this.options.debounce) {
       await new Promise(resolve => setTimeout(resolve, this.options.debounce))
-      if (!this.model) return
+      if (this.cancelled) return
     }
     let promise = this.fn(...this.inputs)
     if (!(promise && typeof promise.then === 'function')) {
       throw new Error(`[react-sharedb] Api: fn must return promise`)
     }
     await promise.then(data => {
-      if (!this.model) return
+      if (this.cancelled) return
       this.data = data
     })
   }

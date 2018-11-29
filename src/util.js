@@ -28,5 +28,7 @@ export function isExtraQuery (queryParams) {
 }
 
 export function clone (data) {
-  return JSON.parse(JSON.stringify(data))
+  let stringified = JSON.stringify(data)
+  if (!stringified) return undefined
+  return JSON.parse(stringified)
 }

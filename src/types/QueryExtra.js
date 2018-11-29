@@ -4,6 +4,7 @@ const MAX_LISTENERS = 100
 
 export default class QueryExtra extends Query {
   refModel () {
+    if (!this.model) return
     let { key } = this
     this.subscription.refExtra(this.model.at(key))
   }

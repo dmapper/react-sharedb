@@ -7,6 +7,7 @@ export default class Value extends Base {
   }
 
   refModel () {
+    if (!this.model) return
     let { key } = this
     this.model.setDiff(key, this.value)
   }

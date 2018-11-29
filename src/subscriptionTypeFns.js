@@ -79,3 +79,51 @@ export function subValue (value) {
     params: value
   }
 }
+
+export function subApi (path, fn, inputs, options) {
+  if (typeof path === 'function') {
+    options = inputs
+    inputs = fn
+    fn = path
+    path = undefined
+  }
+  if (typeof fn !== 'function') {
+    throw new Error(
+      `[react-sharedb] subApi(): api Function (which must return promise) was not provided. Got: ${fn}`
+    )
+  }
+  if (path != null && (typeof path !== 'string' || path === '')) {
+    throw new Error(
+      `[react-sharedb] subApi(): path must be a non-empty string. Got: ${path}`
+    )
+  }
+  if (inputs != null && !_.isArray(inputs)) {
+    if (_.isString(inputs) || _.isBoolean(inputs) || _.isNumber(inputs)) {
+      throw new Error(
+        `[react-sharedb] subApi(): inputs must be an array and ` +
+          `options must be an object. Got: inputs - ${inputs}; options - ${options}`
+      )
+    }
+    options = inputs
+    inputs = undefined
+  }
+  if (
+    options != null &&
+    (_.isArray(options) || _.isString(options) || _.isBoolean(options))
+  ) {
+    throw new Error(
+      `[react-sharedb] subApi(): options must be an object. Got: ${options}`
+    )
+  }
+  if (options && options.debounce) {
+    if (!_.isNumber(options.debounce)) {
+      throw new Error(
+        `[react-sharedb] subApi(): debounce must be a number (milliseconds). Got: ${options.debounce}`
+      )
+    }
+  }
+  return {
+    __subscriptionType: 'Api',
+    params: [path, fn, inputs, options]
+  }
+}

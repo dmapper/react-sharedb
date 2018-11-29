@@ -16,6 +16,7 @@ export default class Doc extends Base {
   }
 
   refModel () {
+    if (!this.model) return
     let { key } = this
     this.model.ref(key, this.subscription)
   }
@@ -30,6 +31,7 @@ export default class Doc extends Base {
     this.subscription = model.scope(`${collection}.${docId}`)
     await new Promise((resolve, reject) => {
       model.subscribe(this.subscription, err => {
+        if (!this.model) return reject('[react-sharedb] Doc already destroyed')
         if (err) return reject(err)
         let shareDoc = model.connection.get(collection, docId)
         shareDoc.data = observable(shareDoc.data)

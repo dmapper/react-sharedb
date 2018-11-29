@@ -331,6 +331,41 @@ if (!DEPRECATED) {
       expect(w.items).to.have.lengthOf(0)
     })
   })
+
+  if (HOOKS) {
+    describe(PREFIX + 'Api', () => {
+      it('should get data from the api', async () => {
+        let w = await initSimple(() => ({
+          items: subApi(
+            '_page.document',
+            index =>
+              new Promise(
+                resolve =>
+                  setTimeout(() => {
+                    resolve({ id: alias(index), name: alias(index) })
+                  }),
+                500
+              ),
+            [1]
+          )
+        }))
+        await w.nextRender({ index: 1 })
+        expect(w.items)
+          .to.have.lengthOf(1)
+          .and.include(alias(1))
+        model.setDiff('_page.document.name', alias(2))
+        await w.nextRender({ index: 2 })
+        expect(w.items)
+          .to.have.lengthOf(1)
+          .and.include(alias(2))
+      })
+
+      it('should remove local path after destroy', async () => {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        expect(model.get('_page.document')).to.be.an('undefined')
+      })
+    })
+  }
 }
 
 describe(PREFIX + 'Edge cases', () => {

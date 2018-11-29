@@ -11,8 +11,15 @@ import Query, { getIdsName } from '../types/Query'
 import QueryExtra from '../types/QueryExtra'
 import Local from '../types/Local'
 import Value from '../types/Value'
+import Api from '../types/Api'
 import { batching } from '../subscribe'
-import { subDoc, subLocal, subValue, subQuery } from '../subscriptionTypeFns'
+import {
+  subDoc,
+  subLocal,
+  subValue,
+  subQuery,
+  subApi
+} from '../subscriptionTypeFns'
 import $root from '@react-sharedb/model'
 
 export function useModel (...args) {
@@ -26,6 +33,7 @@ export const useDoc = generateUseItemOfType(subDoc)
 export const useQuery = generateUseItemOfType(subQuery)
 export const useLocal = generateUseItemOfType(subLocal)
 export const useValue = generateUseItemOfType(subValue)
+export const useApi = generateUseItemOfType(subApi)
 
 function generateUseItemOfType (typeFn) {
   let isQuery = typeFn === subQuery
@@ -91,7 +99,19 @@ function generateUseItemOfType (typeFn) {
       if (isSync) {
         finishInit()
       } else {
-        item.init().then(finishInit)
+        item
+          .init()
+          .then(finishInit)
+          .catch(err => {
+            console.warn(
+              "[react-sharedb] Warning. Item couldn't initialize. " +
+                'This might be normal if several resubscriptions happened ' +
+                'quickly one after another. Error:',
+              err
+            )
+            // Ignore the .init() error
+            return Promise.resolve()
+          })
       }
     }, [])
 
@@ -182,6 +202,8 @@ function getItemConstructor (type) {
       return QueryExtra
     case 'Value':
       return Value
+    case 'Api':
+      return Api
     default:
       throw new Error('Unsupported subscription type: ' + type)
   }

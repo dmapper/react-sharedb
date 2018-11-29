@@ -8,6 +8,7 @@ import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
 import Value from './types/Value'
+import Api from './types/Api'
 import Batching from './Batching'
 import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
 import semaphore from './semaphore'
@@ -289,7 +290,19 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
         })
       }
       if (item.init) {
-        return item.init().then(finishInit)
+        return item
+          .init()
+          .then(finishInit)
+          .catch(err => {
+            console.warn(
+              "[react-sharedb] Warning. Item couldn't initialize. " +
+                'This might be normal if several resubscriptions happened ' +
+                'quickly one after another. Error:',
+              err
+            )
+            // Ignore the .init() error
+            return Promise.resolve()
+          })
       } else {
         finishInit()
         return Promise.resolve()
@@ -329,6 +342,8 @@ function getItemConstructor (type) {
       return QueryExtra
     case 'Value':
       return Value
+    case 'Api':
+      return Api
     default:
       throw new Error('Unsupported subscription type: ' + type)
   }

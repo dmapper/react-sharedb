@@ -63,6 +63,9 @@ export function convertToHooksSubscribeParams (fn) {
       case 'Value':
         useFn = useValue
         break
+      case 'Api':
+        useFn = useApi
+        break
       default:
         throw new Error('Unknown useFn type: ' + type)
     }

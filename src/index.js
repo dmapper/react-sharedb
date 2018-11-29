@@ -5,7 +5,13 @@ export { subscribe }
 export const batchModel = batching.batch.bind(batching)
 export { default as _semaphore } from './semaphore'
 export { initLocalCollection } from './util'
-export { subLocal, subDoc, subQuery, subValue } from './subscriptionTypeFns'
+export {
+  subLocal,
+  subDoc,
+  subQuery,
+  subValue,
+  subApi
+} from './subscriptionTypeFns'
 export { observer } from './hooks/observer'
-export { useModel, useDoc, useQuery, useLocal, useValue } from './hooks'
+export { useModel, useDoc, useQuery, useLocal, useValue, useApi } from './hooks'
 export { raw } from '@nx-js/observer-util'

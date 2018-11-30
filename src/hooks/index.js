@@ -58,55 +58,61 @@ function generateUseItemOfType (typeFn) {
 
     const params = useMemo(() => typeFn(...args), [hashedArgs])
 
-    const finishInit = useCallback(cancelInit => {
-      // If another initialization happened while we were waiting for init to finish, don't do anything
-      if (cancelInit.value) return
-
-      batching.batch(() => {
-        // destroy the previous item and all unsuccessful item inits which happened until now.
-        // Unsuccessful inits means the inits of those items which were cancelled, because
-        // while the subscription was in process, another new item init started
-        // (this might happen when the query parameter, like text search, changes quickly)
-        // Don't destroy self though.
-        destructorsRef.current.forEach((destroy, index) => {
-          if (index !== destructorsRef.current.length - 1) destroy()
-        })
-
-        // Clear all destructors array other then current item's destroy
-        destructorsRef.current.splice(0, destructorsRef.current.length - 1)
-
-        // Mark that initialization completed
-        initsCountRef.current++
-
-        // Reference the new item data
-        itemRef.current && itemRef.current.refModel()
+    const finishInit = useCallback(() => {
+      // destroy the previous item and all unsuccessful item inits which happened until now.
+      // Unsuccessful inits means the inits of those items which were cancelled, because
+      // while the subscription was in process, another new item init started
+      // (this might happen when the query parameter, like text search, changes quickly)
+      // Don't destroy self though.
+      destructorsRef.current.forEach((destroy, index) => {
+        if (index !== destructorsRef.current.length - 1) destroy()
       })
+
+      // Clear all destructors array other then current item's destroy
+      destructorsRef.current.splice(0, destructorsRef.current.length - 1)
+
+      // Mark that initialization completed
+      initsCountRef.current++
+
+      // Reference the new item data
+      itemRef.current && itemRef.current.refModel()
     }, [])
 
     const initItem = useCallback(params => {
-      let firstItem = !itemRef.current
-
-      // Cancel previous initialization if it is active
-      if (cancelInitRef.current) cancelInitRef.current.value = true
-      if (itemRef.current) itemRef.current.cancel()
-
       let item = getItemFromParams(params, hookId)
-      itemRef.current = item
-
       destructorsRef.current.push(() => {
         item.unrefModel()
         item.destroy()
       })
 
-      let cancelInit = {}
-      cancelInitRef.current = cancelInit
-
       if (isSync) {
-        finishInit(cancelInit)
+        // since initialization happens synchronously,
+        // there is no need to bother with cancellation of
+        // the previous item
+        itemRef.current = item
+        batching.batch(finishInit)
       } else {
+        // Cancel initialization of the previous item
+        if (cancelInitRef.current) cancelInitRef.current.value = true
+        // and init new
+        let cancelInit = {}
+        cancelInitRef.current = cancelInit
+
+        // If there is no previous item, it means we are the first
+        let firstItem = !itemRef.current
+        // Cancel previous item
+        if (itemRef.current) itemRef.current.cancel()
+        // and init new
+        itemRef.current = item
+
         item
           .init(firstItem)
-          .then(() => finishInit(cancelInit))
+          .then(() => {
+            // Handle situation when a new item already started initializing
+            // and it cancelled this (old) item
+            if (cancelInit.value) return
+            batching.batch(finishInit)
+          })
           .catch(err => {
             console.warn(
               "[react-sharedb] Warning. Item couldn't initialize. " +

@@ -84,6 +84,8 @@ function generateUseItemOfType (typeFn) {
     }, [])
 
     const initItem = useCallback(params => {
+      let firstItem = !itemRef.current
+
       // Cancel previous initialization if it is active
       if (cancelInitRef.current) cancelInitRef.current.value = true
       if (itemRef.current) itemRef.current.cancel()
@@ -103,7 +105,7 @@ function generateUseItemOfType (typeFn) {
         finishInit(cancelInit)
       } else {
         item
-          .init()
+          .init(firstItem)
           .then(() => finishInit(cancelInit))
           .catch(err => {
             console.warn(
@@ -150,14 +152,14 @@ function generateUseItemOfType (typeFn) {
     // ----- return -----
 
     return [
-      // Initialize async item as `null`
-      // This way the strict `value === null` check can be used to determine
-      // precisely whether the subscribe has finished executing
-      initsCountRef.current ? data : null,
+      initsCountRef.current ? data : undefined,
 
       // Query, QueryExtra: return scoped model to collection path.
       // Everything else: return the 'hooks.<randomHookId>' scoped model.
-      $queryCollection || $model
+      $queryCollection || $model,
+
+      // explicit ready flag
+      !!initsCountRef.current
 
       // TODO: Maybe enable returning array of ids for Query in future.
       //       The potential drawback is that the rendering might fire twice

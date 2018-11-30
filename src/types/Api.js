@@ -13,8 +13,8 @@ export default class Local extends Base {
     this.listeners = []
   }
 
-  async init () {
-    await this._fetch()
+  async init (firstItem) {
+    await this._fetch(firstItem)
   }
 
   refModel () {
@@ -39,8 +39,8 @@ export default class Local extends Base {
     }
   }
 
-  async _fetch () {
-    if (this.options.debounce) {
+  async _fetch (firstItem) {
+    if (this.options.debounce && !firstItem) {
       await new Promise(resolve => setTimeout(resolve, this.options.debounce))
       if (this.cancelled) return
     }

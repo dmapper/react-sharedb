@@ -33,6 +33,9 @@ export function observer (baseComponent) {
     return observedComponent(props)
   })
   memoComponent.displayName = baseComponentName
+  if (baseComponent.propTypes) {
+    memoComponent.propTypes = baseComponent.propTypes
+  }
   return memoComponent
 }
 

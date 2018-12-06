@@ -65,6 +65,15 @@ const getAutorunComponent = (Component, isStateless) =>
         if (this.unmounted) return
         this.setState(DUMMY_STATE)
       }
+      if (Component.debounce) {
+        let debounce = Component.debounce
+        if (debounce === true) debounce = 300
+        updateFn = _.debounce(updateFn, debounce, {
+          leading: true,
+          maxWait: 3000,
+          trailing: true
+        })
+      }
       this.update = () => batching.add(updateFn)
 
       // let fn = () => batchedUpdate(() => {

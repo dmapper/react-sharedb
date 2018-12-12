@@ -13,5 +13,6 @@ export {
   subApi
 } from './subscriptionTypeFns'
 export { observer } from './hooks/observer'
-export { useModel, useDoc, useQuery, useLocal, useValue, useApi } from './hooks'
+export { useDoc, useQuery, useLocal, useValue, useApi } from './hooks/types'
+export { useModel, useOn, useEmit } from './hooks/helpers'
 export { raw } from '@nx-js/observer-util'

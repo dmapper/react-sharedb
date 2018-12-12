@@ -22,10 +22,6 @@ import {
 } from '../subscriptionTypeFns'
 import $root from '@react-sharedb/model'
 
-export function useModel (...args) {
-  return useMemo(() => $root.scope(...args), [...args])
-}
-
 const HOOKS_COLLECTION = '$hooks'
 const $hooks = $root.scope(HOOKS_COLLECTION)
 

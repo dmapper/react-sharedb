@@ -39,6 +39,28 @@ Refer to the documentation of [`subDoc()`](#subDoc) below
 
 Refer to the documentation of [`subQuery()`](#subQuery) below
 
+### `useQueryIds(collection, ids)`
+
+Subscribe to documents in collection by their ids
+
+`collection` \[String\] -- collection name. Required
+`ids` \[Array\] -- array of strings which should be document ids.
+
+Example:
+
+```js
+observer(function Players ({ gameId }) {
+  let [game] = useDoc('games', gameId)
+  if (!game) return null // <Loading />
+  let [players, $players] = useQueryIds('games', game.playerIds)
+  if (!players) return null // <Loading />
+
+  return (
+    <div>{players.map(i => i.name).join(' ,')}</div>
+  )
+})
+```
+
 ### `useLocal(localPath)`
 
 Refer to the documentation of [`subLocal()`](#subLocal) below

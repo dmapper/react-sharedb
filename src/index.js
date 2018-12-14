@@ -14,5 +14,5 @@ export {
 } from './subscriptionTypeFns'
 export { observer } from './hooks/observer'
 export { useDoc, useQuery, useLocal, useValue, useApi } from './hooks/types'
-export { useModel, useOn, useEmit } from './hooks/helpers'
+export { useModel, useOn, useEmit, useQueryIds } from './hooks/helpers'
 export { raw } from '@nx-js/observer-util'

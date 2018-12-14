@@ -11,6 +11,7 @@ import Value from './types/Value'
 import Api from './types/Api'
 import Batching from './Batching'
 import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
+import SharedbDoc from 'sharedb/lib/client/doc'
 import semaphore from './semaphore'
 import { isExtraQuery } from './util'
 import {
@@ -383,6 +384,20 @@ function bindMethods (object, methodsToBind) {
 
 function getScopedModelName (key) {
   return `$${key}`
+}
+
+// ----------------------------------------------
+//   Monkey patches of ShareDB and Racer
+// ----------------------------------------------
+
+// Patch applying sharedb operations to prevent extra rerender from triggering
+const oldHandleOp = SharedbDoc.prototype._handleOp
+SharedbDoc.prototype._handleOp = function () {
+  let value
+  batching.batch(() => {
+    value = oldHandleOp.apply(this, arguments)
+  })
+  return value
 }
 
 const BATCH_SETTERS = ['_mutate', '_setEach', '_setDiff', '_setDiffDeep']

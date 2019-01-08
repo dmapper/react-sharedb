@@ -11,6 +11,7 @@ import Value from './types/Value'
 import Api from './types/Api'
 import Batching from './Batching'
 import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
+import RacerRemoteDoc from 'racer/lib/Model/RemoteDoc'
 import SharedbDoc from 'sharedb/lib/client/doc'
 import semaphore from './semaphore'
 import { isExtraQuery } from './util'
@@ -449,4 +450,12 @@ RacerLocalDoc.prototype._updateCollectionData = function () {
     )
   }
   return oldUpdateCollectionData.apply(this, arguments)
+}
+
+// Monkey patch racer remote doc to make document observable when it's created locally
+let oldRemoteDocUpdateCollectionData =
+  RacerRemoteDoc.prototype._updateCollectionData
+RacerRemoteDoc.prototype._updateCollectionData = function () {
+  if (this.shareDoc.data) this.shareDoc.data = observable(this.shareDoc.data)
+  return oldRemoteDocUpdateCollectionData.apply(this, arguments)
 }

@@ -35,6 +35,17 @@ export default observer(function User ({userId}) {
 
 Refer to the documentation of [`subDoc()`](#subDoc) below
 
+### `useLocalDoc(collection, docId)`
+
+A convenience method to get the document you are already subscribed to
+using the same API as `useDoc()`
+
+```js
+let [game, $game] = useLocalDoc('games', gameId)
+// It's the same as doing:
+let [game, $game] = useLocal('games.' + gameId)
+```
+
 ### `useQuery(collection, query)`
 
 Refer to the documentation of [`subQuery()`](#subQuery) below

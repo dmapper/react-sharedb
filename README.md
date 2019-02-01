@@ -63,7 +63,7 @@ Example:
 observer(function Players ({ gameId }) {
   let [game] = useDoc('games', gameId)
   if (!game) return null // <Loading />
-  let [players, $players] = useQueryIds('games', game.playerIds)
+  let [players, $players] = useQueryIds('players', game.playerIds)
   if (!players) return null // <Loading />
 
   return (
@@ -72,7 +72,7 @@ observer(function Players ({ gameId }) {
 })
 ```
 
-### `useLocal(localPath)`
+### `useLocal(path)`
 
 Refer to the documentation of [`subLocal()`](#subLocal) below
 
@@ -316,12 +316,10 @@ for (let user of usersInRoom) {
 ```
 
 <a name="subLocal"></a>
-### `subLocal(localPath)`
+### `subLocal(path)`
 
 Subscribe to the data you already have in your local model by path.
 You'll receive the data on that path as `props.store.{key}`
-
-`localPath` \[String\] -- path.
 
 You will usually use it to subscribe to private collections like `_page` or `_session`.
 This is very useful when you want to share the state between multiple components.

@@ -50,12 +50,18 @@ let [game, $game] = useLocal('games.' + gameId)
 
 Refer to the documentation of [`subQuery()`](#subQuery) below
 
-### `useQueryIds(collection, ids)`
+### `useQueryIds(collection, ids, options)`
 
 Subscribe to documents in collection by their ids
 
 `collection` \[String\] -- collection name. Required
 `ids` \[Array\] -- array of strings which should be document ids.
+`options` \[Object\] -- 
+    ```js
+    { 
+      reverse: false // reverse the order of resulting array
+    }
+    ```
 
 Example:
 
@@ -72,9 +78,54 @@ observer(function Players ({ gameId }) {
 })
 ```
 
+### `useQueryDoc(collection, query)`
+
+Subscribe to a document using a query. It's the same as `useDoc()`, but
+with `query` parameter instead of the particular `docId`.
+`$limit: 1` and `$sort: { createdAt: -1 }` are added to the query automatically (if they don't already exist). 
+
+`collection` \[String\] -- collection name. Required
+`query` \[Object\] -- query object, same as in `useQuery()`.
+
+Example:
+
+```js
+observer(function NewPlayer ({ gameId }) {
+  // { $sort: { createdAt: -1 }, $limit: 1 }   
+  // is added automatically to the query, so the newest player will be returned.
+  // It's also reactive, so whenever a new player joins, you'll receive the new data and model.
+  let [newPlayer, $newPlayer] = useQueryDoc('players', { gameId })
+  if (!newPlayer) return null // <Loading />
+
+  return (
+    <div>New player joined: {newPlayer.name}</div>
+  )
+})
+```
+
 ### `useLocal(path)`
 
 Refer to the documentation of [`subLocal()`](#subLocal) below
+
+### `useSession(path)`
+
+A convenience method to access the `_session` local collection.
+
+```js
+let [userId, $userId] = useSession('userId')
+// It's the same as doing:
+let [userId, $userId] = useLocal('_session.userId')
+``` 
+
+### `usePage(path)`
+
+A convenience method to access the `_page` local collection.
+
+```js
+let [game, $game] = usePage('game')
+// It's the same as doing:
+let [game, $game] = useLocal('_page.game')
+``` 
 
 ### `useValue(value)`
 

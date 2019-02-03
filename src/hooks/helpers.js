@@ -22,11 +22,31 @@ export function useEmit () {
   return boundEmit
 }
 
-export function useQueryIds (collection, ids = []) {
+export function useQueryIds (collection, ids = [], options = {}) {
   let [, $items, ready] = useQuery(collection, { _id: { $in: ids } })
   if (!ready) return [undefined, $items, ready]
+  if (options.reverse) ids = ids.slice().reverse()
   let items = ids.map(id => $root.get(`${collection}.${id}`)).filter(Boolean)
   return [items, $items, ready]
+}
+
+export function useQueryDoc (collection, query) {
+  query = {
+    ...query,
+    $limit: 1
+  }
+  if (!query.$sort) query.$sort = { createdAt: -1 }
+  let [items = [], , ready] = useQuery(collection, query)
+  let itemId = items[0] && items[0].id
+  let $item = useMemo(
+    () => {
+      if (!itemId) return
+      return $root.at(`${collection}.${itemId}`)
+    },
+    [itemId]
+  )
+  if (!ready || !itemId) return [undefined, undefined, ready]
+  return [$root.get(`${collection}.${itemId}`), $item, ready]
 }
 
 export function useLocalDoc (collection, docId) {
@@ -45,4 +65,22 @@ export function useLocalDoc (collection, docId) {
     docId = '__NULL__'
   }
   return useLocal(collection + '.' + docId)
+}
+
+export function useSession (path) {
+  if (typeof path !== 'string') {
+    throw new Error(
+      `[react-sharedb] useSession(): \`path\` must be a String. Got: ${path}`
+    )
+  }
+  return useLocal('_session' + '.' + path)
+}
+
+export function usePage (path) {
+  if (typeof path !== 'string') {
+    throw new Error(
+      `[react-sharedb] usePage(): \`path\` must be a String. Got: ${path}`
+    )
+  }
+  return useLocal('_page' + '.' + path)
 }

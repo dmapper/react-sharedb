@@ -19,6 +19,9 @@ export {
   useOn,
   useEmit,
   useQueryIds,
-  useLocalDoc
+  useLocalDoc,
+  useQueryDoc,
+  useSession,
+  usePage
 } from './hooks/helpers'
 export { raw } from '@nx-js/observer-util'

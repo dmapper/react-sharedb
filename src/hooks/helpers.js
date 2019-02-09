@@ -2,7 +2,7 @@ import React, { useMemo, useLayoutEffect } from 'react'
 import $root from '@react-sharedb/model'
 import { useQuery, useLocal } from './types'
 
-const boundEmit = $root.emit.bind($root)
+export const emit = $root.emit.bind($root)
 
 export function useModel (...args) {
   return useMemo(() => $root.scope(...args), [...args])
@@ -19,7 +19,7 @@ export function useOn (...args) {
 }
 
 export function useEmit () {
-  return boundEmit
+  return emit
 }
 
 export function useQueryIds (collection, ids = [], options = {}) {

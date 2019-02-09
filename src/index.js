@@ -15,6 +15,7 @@ export {
 export { observer } from './hooks/observer'
 export { useDoc, useQuery, useLocal, useValue, useApi } from './hooks/types'
 export {
+  emit,
   useModel,
   useOn,
   useEmit,

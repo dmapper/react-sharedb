@@ -1,6 +1,6 @@
-import React, { useMemo, useLayoutEffect } from 'react'
+import { useMemo, useLayoutEffect } from 'react'
 import $root from '@react-sharedb/model'
-import { useQuery, useLocal } from './types'
+import { useQuery, useLocal } from './hooks'
 
 export const emit = $root.emit.bind($root)
 
@@ -60,7 +60,7 @@ export function useLocalDoc (collection, docId) {
       [react-sharedb] useLocalDoc(): You are trying to subscribe to an undefined document id:
         ${collection}.${docId}
       Falling back to '__NULL__' document to prevent critical crash.
-      You should prevent situations when the \`docId\` is undefined.  
+      You should prevent situations when the \`docId\` is undefined.
     `)
     docId = '__NULL__'
   }

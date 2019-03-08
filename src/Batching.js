@@ -1,7 +1,7 @@
 // Synchronous batching of functions execution
 // Requires ES6 Set
 
-export default class Batching {
+class Batching {
   constructor () {
     this.active = false
     this.queue = new Set()
@@ -49,3 +49,5 @@ function getFirstItem (set) {
     return first
   }
 }
+
+export default new Batching()

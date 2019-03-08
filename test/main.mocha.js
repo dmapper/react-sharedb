@@ -6,37 +6,29 @@ import _ from 'lodash'
 import './_server'
 import waitForExpect from 'wait-for-expect'
 import {
-  initSimple as initSimpleOrig,
-  initComplex,
   tInitHooksSimple,
   tInitHooksComplex,
   convertToHooksSubscribeParams,
   unmount
 } from './_helpers'
 
-const HOOKS = process.env.HOOKS
-const DEPRECATED = process.env.DEPRECATED
-const PREFIX = HOOKS
-  ? 'Hooks. '
-  : DEPRECATED ? 'Class [DEPRECATED]. ' : 'Class. '
+const PREFIX = 'Hooks. '
 
 // Maybe change initSimple to Hooks-specific version
-const initSimple = HOOKS
-  ? async (initialProps, subscribeFn, params) => {
-    if (typeof initialProps === 'function') {
-      params = subscribeFn
-      subscribeFn = initialProps
-      initialProps = {}
-    }
-    let { initWithData } = params || {}
-    let w = await tInitHooksSimple(
-      initialProps,
-      convertToHooksSubscribeParams(subscribeFn)
-    )
-    await w.nextRender(initWithData ? { index: 0 } : { index: 1 })
-    return w
+const initSimple = async (initialProps, subscribeFn, params) => {
+  if (typeof initialProps === 'function') {
+    params = subscribeFn
+    subscribeFn = initialProps
+    initialProps = {}
   }
-  : initSimpleOrig
+  let { initWithData } = params || {}
+  let w = await tInitHooksSimple(
+    initialProps,
+    convertToHooksSubscribeParams(subscribeFn)
+  )
+  await w.nextRender(initWithData ? { index: 0 } : { index: 1 })
+  return w
+}
 
 // Workaround to init rpc and subscribe only after the server started (which is a global before)
 before(asyncImport)
@@ -280,101 +272,86 @@ describe(PREFIX + 'Local', () => {
   })
 })
 
-if (!DEPRECATED) {
-  describe(PREFIX + 'Value', () => {
-    const getLocalPath = () => {
-      if (HOOKS) {
-        let docId = Object.keys(model.get('$hooks')).find(i => i !== '__FOO')
-        return `$hooks.${docId}`
-      } else {
-        let docId = Object.keys(model.get('$components')).find(
-          i => i !== '__FOO'
-        )
-        return `$components.${docId}.items`
-      }
-    }
+describe(PREFIX + 'Value', () => {
+  const getLocalPath = () => {
+    let docId = Object.keys(model.get('$hooks')).find(i => i !== '__FOO')
+    return `$hooks.${docId}`
+  }
 
-    it('update value', async () => {
-      let w = await initSimple(
-        () => ({ items: subValue({ id: alias(1), name: alias(1) }) }),
-        { initWithData: true }
+  it('update value', async () => {
+    let w = await initSimple(
+      () => ({ items: subValue({ id: alias(1), name: alias(1) }) }),
+      { initWithData: true }
+    )
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+
+    let localPath = getLocalPath()
+    model.set(localPath, { id: alias(2), name: alias(2) })
+    await w.nextRender({ index: 1 })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(2))
+
+    model.del(localPath)
+    await w.nextRender({ index: 2 })
+    expect(w.items).to.have.lengthOf(0)
+
+    model.set(localPath, { id: alias(3), name: alias(3) })
+    await w.nextRender({ index: 3 })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(3))
+
+    model.set(`${localPath}.name`, alias(4))
+    await w.nextRender({ index: 4 })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(4))
+
+    model.del(localPath)
+    await w.nextRender({ index: 5 })
+    expect(w.items).to.have.lengthOf(0)
+  })
+})
+
+describe(PREFIX + 'Api', () => {
+  it('should get data from the api', async () => {
+    let w = await initSimple(() => ({
+      items: subApi(
+        '_page.document',
+        index =>
+          new Promise(
+            resolve =>
+              setTimeout(() => {
+                resolve({ id: alias(index), name: alias(index) })
+              }),
+            500
+          ),
+        [1]
       )
-      expect(w.items)
-        .to.have.lengthOf(1)
-        .and.include(alias(1))
-
-      let localPath = getLocalPath()
-      model.set(localPath, { id: alias(2), name: alias(2) })
-      await w.nextRender({ index: 1 })
-      expect(w.items)
-        .to.have.lengthOf(1)
-        .and.include(alias(2))
-
-      model.del(localPath)
-      await w.nextRender({ index: 2 })
-      expect(w.items).to.have.lengthOf(0)
-
-      model.set(localPath, { id: alias(3), name: alias(3) })
-      await w.nextRender({ index: 3 })
-      expect(w.items)
-        .to.have.lengthOf(1)
-        .and.include(alias(3))
-
-      model.set(`${localPath}.name`, alias(4))
-      await w.nextRender({ index: 4 })
-      expect(w.items)
-        .to.have.lengthOf(1)
-        .and.include(alias(4))
-
-      model.del(localPath)
-      await w.nextRender({ index: 5 })
-      expect(w.items).to.have.lengthOf(0)
-    })
+    }))
+    let count = 1
+    await w.nextRender({ index: count++ })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+    model.setDiff('_page.document.name', alias(2))
+    await w.nextRender({ index: count++ })
+    expect(w.items)
+      .to.have.lengthOf(1)
+      .and.include(alias(2))
   })
 
-  describe(PREFIX + 'Api', () => {
-    it('should get data from the api', async () => {
-      let w = await initSimple(() => ({
-        items: subApi(
-          '_page.document',
-          index =>
-            new Promise(
-              resolve =>
-                setTimeout(() => {
-                  resolve({ id: alias(index), name: alias(index) })
-                }),
-              500
-            ),
-          [1]
-        )
-      }))
-      let count = HOOKS ? 1 : 0
-      await w.nextRender({ index: count++ })
-      expect(w.items)
-        .to.have.lengthOf(1)
-        .and.include(alias(1))
-      model.setDiff('_page.document.name', alias(2))
-      await w.nextRender({ index: count++ })
-      expect(w.items)
-        .to.have.lengthOf(1)
-        .and.include(alias(2))
-    })
-
-    // TODO: Enzyme unmount doesn't trigger destruction for some reason.
-    //       For now run this test only for hooks since they
-    //       use react-test-renderer
-    if (HOOKS) {
-      it('should remove local path after destroy', async () => {
-        await new Promise(resolve => setTimeout(resolve, 500))
-        expect(model.get('_page.document')).to.be.an('undefined')
-      })
-    } else {
-      it('[cleanup] force clear _page.document from prev test', () => {
-        model.del('_page.document')
-      })
-    }
+  // TODO: Enzyme unmount doesn't trigger destruction for some reason.
+  //       For now run this test only for hooks since they
+  //       use react-test-renderer
+  it('should remove local path after destroy', async () => {
+    await new Promise(resolve => setTimeout(resolve, 500))
+    expect(model.get('_page.document')).to.be.an('undefined')
   })
-}
+})
 
 describe(PREFIX + 'Edge cases', () => {
   it('initially null document. Then update to create it.', async () => {
@@ -558,139 +535,47 @@ describe(PREFIX + 'Edge cases', () => {
   })
 })
 
-// NON-hooks only
+describe(PREFIX + 'Complex', () => {
+  it('basic', async () => {
+    let items = [
+      'user',
+      'game1',
+      'game2',
+      'players1',
+      'players2',
+      'usersInGame1',
+      'usersInGame2'
+    ]
+    let w = await tInitHooksComplex()
+    await w.nextRender(items.length)
 
-if (!HOOKS) {
-  describe(PREFIX + 'Complex', () => {
-    it('multiple subscriptions. Query and Doc. Removal of keys.', async () => {
-      let w = await initComplex(
-        {
-          color0: 'red',
-          color1: 'blue'
-        },
-        ({ color0, color1, hasCar }) => {
-          let res = {
-            items0: color0 && subQuery('users', { color: color0 }),
-            items1: color1 && subQuery('users', { color: color1 })
-          }
-          if (hasCar) res.items2 = subDoc('cars', 'test1_')
-          return res
-        }
-      )
-      expect(w.items[0])
-        .to.have.lengthOf(3)
-        .and.include.members(alias([3, 4, 5]))
-      expect(w.items[1])
-        .to.have.lengthOf(2)
-        .and.include.members(alias([1, 2]))
-      expect(w.items[2]).to.have.lengthOf(0)
-      // 4 renders should happen: for props change and each item's setState
+    expect(Object.keys(w.items))
+      .to.have.lengthOf(items.length)
+      .and.include.members(items)
 
-      await w.setProps({
-        color0: 'blue',
-        color1: 'red',
-        hasCar: true
-      })
+    expect(w.items.user)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
 
-      await waitForExpect(() => {
-        expect(w.items[0])
-          .to.have.lengthOf(2)
-          .and.include.members(alias([1, 2]))
-        expect(w.items[1])
-          .to.have.lengthOf(3)
-          .and.include.members(alias([3, 4, 5]))
-        expect(w.items[2])
-          .to.have.lengthOf(1)
-          .and.include.members(alias([1]))
-      })
+    expect(w.items.game1)
+      .to.have.lengthOf(1)
+      .and.include(alias(1))
+    expect(w.items.game2)
+      .to.have.lengthOf(1)
+      .and.include(alias(2))
 
-      // 1 render should happen: for props and removeItemData -- sync
-      await w.setProps({ hasCar: false })
-      await waitForExpect(() => {
-        expect(w.items[0])
-          .to.have.lengthOf(2)
-          .and.include.members(alias([1, 2]))
-        expect(w.items[1])
-          .to.have.lengthOf(3)
-          .and.include.members(alias([3, 4, 5]))
-        expect(w.items[2]).to.have.lengthOf(0)
-      })
-      await w.setProps({
-        color0: undefined,
-        color1: { $in: ['red', 'blue'] },
-        hasCar: true
-      })
-      await waitForExpect(() => {
-        expect(w.items[0]).to.have.lengthOf(0)
-        expect(w.items[1])
-          .to.have.lengthOf(5)
-          .and.include.members(alias([1, 2, 3, 4, 5]))
-        expect(w.items[2])
-          .to.have.lengthOf(1)
-          .and.include.members(alias([1]))
-      })
-      await w.setProps({
-        color0: 'red',
-        hasCar: false
-      })
-      await waitForExpect(() => {
-        expect(w.items[0])
-          .to.have.lengthOf(3)
-          .and.include.members(alias([3, 4, 5]))
-        expect(w.items[1])
-          .to.have.lengthOf(5)
-          .and.include.members(alias([1, 2, 3, 4, 5]))
-        expect(w.items[2]).to.have.lengthOf(0)
-      })
-    })
+    expect(w.items.players1)
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
+    expect(w.items.players2)
+      .to.have.lengthOf(3)
+      .and.include.members(alias([1, 3, 5]))
+
+    expect(w.items.usersInGame1)
+      .to.have.lengthOf(2)
+      .and.include.members(alias([1, 2]))
+    expect(w.items.usersInGame2)
+      .to.have.lengthOf(3)
+      .and.include.members(alias([1, 3, 5]))
   })
-}
-
-// Hooks only
-
-if (HOOKS) {
-  describe(PREFIX + 'Complex', () => {
-    it('basic', async () => {
-      let items = [
-        'user',
-        'game1',
-        'game2',
-        'players1',
-        'players2',
-        'usersInGame1',
-        'usersInGame2'
-      ]
-      let w = await tInitHooksComplex()
-      await w.nextRender(items.length)
-
-      expect(Object.keys(w.items))
-        .to.have.lengthOf(items.length)
-        .and.include.members(items)
-
-      expect(w.items.user)
-        .to.have.lengthOf(1)
-        .and.include(alias(1))
-
-      expect(w.items.game1)
-        .to.have.lengthOf(1)
-        .and.include(alias(1))
-      expect(w.items.game2)
-        .to.have.lengthOf(1)
-        .and.include(alias(2))
-
-      expect(w.items.players1)
-        .to.have.lengthOf(2)
-        .and.include.members(alias([1, 2]))
-      expect(w.items.players2)
-        .to.have.lengthOf(3)
-        .and.include.members(alias([1, 3, 5]))
-
-      expect(w.items.usersInGame1)
-        .to.have.lengthOf(2)
-        .and.include.members(alias([1, 2]))
-      expect(w.items.usersInGame2)
-        .to.have.lengthOf(3)
-        .and.include.members(alias([1, 3, 5]))
-    })
-  })
-}
+})

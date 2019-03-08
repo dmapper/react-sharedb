@@ -3,8 +3,6 @@ global.DEBUG = process.env.DEBUG || process.env.debug
 
 global.subscribe = null
 global.serverModel = null
-global.Simple = null
-global.Complex = null
 global.model = null
 global.subDoc = null
 global.subQuery = null
@@ -24,10 +22,7 @@ global.globalEnzymeNode = null
 
 export function asyncImport () {
   global.serverModel = require('./_client/initRpc')
-  global.subscribe = require('../src').subscribe
   global.model = require('../src').model
-  global.Simple = require('./stubs/Simple')
-  global.Complex = require('./stubs/Complex')
   global.subValue = require('../src').subValue
   global.subDoc = require('../src').subDoc
   global.subQuery = require('../src').subQuery

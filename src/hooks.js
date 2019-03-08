@@ -1,25 +1,18 @@
-import {
-  useMemo,
-  useEffect,
-  useLayoutEffect,
-  useState,
-  useRef,
-  useCallback
-} from 'react'
-import Doc from '../types/Doc'
-import Query, { getIdsName } from '../types/Query'
-import QueryExtra from '../types/QueryExtra'
-import Local from '../types/Local'
-import Value from '../types/Value'
-import Api from '../types/Api'
-import { batching } from '../subscribe'
+import { useMemo, useLayoutEffect, useRef, useCallback } from 'react'
+import Doc from './types/Doc'
+import Query from './types/Query'
+import QueryExtra from './types/QueryExtra'
+import Local from './types/Local'
+import Value from './types/Value'
+import Api from './types/Api'
+import batching from './batching'
 import {
   subDoc,
   subLocal,
   subValue,
   subQuery,
   subApi
-} from '../subscriptionTypeFns'
+} from './subscriptionTypeFns'
 import $root from '@react-sharedb/model'
 
 const HOOKS_COLLECTION = '$hooks'
@@ -184,12 +177,6 @@ function getCollectionName (params) {
   return params && params.params && params.params[0]
 }
 
-// TODO: Maybe enable returning array of ids for Query in future.
-function hasIds (params) {
-  let explicitType = params && params.__subscriptionType
-  return explicitType === 'Query'
-}
-
 function getItemFromParams (params, key) {
   let explicitType = params && params.__subscriptionType
   let subscriptionParams = params.params
@@ -230,20 +217,4 @@ function useAsync (fn, inputs) {
   useLayoutEffect(() => {
     fn()
   }, inputs)
-}
-
-// TODO: Might be useful in future as a sync alternative to useEffect
-function useSyncEffect (fn, inputs) {
-  let prevCleanup = useRef()
-  useMemo(() => {
-    batching.batch(() => {
-      prevCleanup.current && prevCleanup.current()
-      prevCleanup.current = fn()
-    })
-  }, inputs)
-  useUnmount(() => {
-    batching.batch(() => {
-      prevCleanup.current && prevCleanup.current()
-    })
-  })
 }

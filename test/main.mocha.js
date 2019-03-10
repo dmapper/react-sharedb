@@ -37,20 +37,21 @@ before(asyncImport)
 afterEach(cleanup)
 
 describe(PREFIX + 'Helpers', () => {
-  it('test RPC', async () => {
-    let w
+  it('test RPC. 1', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
-    w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
+    let w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
     expect(w.items).to.include(alias(1))
-    unmount()
+  })
 
+  it('test RPC. 2', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, 'Abrakadabra')
-    w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
+    let w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
     expect(w.items).to.include('Abrakadabra')
-    unmount()
+  })
 
+  it('test RPC. 3', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
-    w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
+    let w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
     expect(w.items).to.include(alias(1))
   })
 })

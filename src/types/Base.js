@@ -1,8 +1,8 @@
 export default class Base {
-  constructor (model, key, params) {
-    this.key = key
+  constructor (connection, uniqId, params) {
+    this.uniqId = uniqId
     this.params = params
-    this.model = model
+    this.connection = connection
   }
 
   refModel () {}
@@ -11,9 +11,9 @@ export default class Base {
 
   destroy () {
     this.cancel()
-    delete this.model
+    delete this.connection
     delete this.params
-    delete this.key
+    delete this.uniqId
   }
 
   // Cancel initialization process

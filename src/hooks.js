@@ -1,4 +1,4 @@
-import { useMemo, useLayoutEffect, useRef, useCallback } from 'react'
+import { useMemo, useLayoutEffect, useRef, useCallback, useState } from 'react'
 import Doc from './types/Doc'
 import Query from './types/Query'
 import QueryExtra from './types/QueryExtra'
@@ -26,11 +26,13 @@ export const useApi = generateUseItemOfType(subApi)
 
 function generateUseItemOfType (typeFn) {
   let isQuery = typeFn === subQuery
+  let hasDataFn = typeFn === subDoc
   let isSync = typeFn === subLocal || typeFn === subValue
   let useDymamic = isSync ? useSync : useAsync
   return (...args) => {
     let hookId = useMemo(() => $root.id(), [])
     let hashedArgs = useMemo(() => JSON.stringify(args), args)
+    let forceUpdate = useForceUpdate()
 
     const initsCountRef = useRef(0)
     const cancelInitRef = useRef()
@@ -65,6 +67,9 @@ function generateUseItemOfType (typeFn) {
 
       // Reference the new item data
       itemRef.current && itemRef.current.refModel()
+
+      // Force rerender if the data is received manually
+      if (hasDataFn) forceUpdate()
     }, [])
 
     const initItem = useCallback(params => {
@@ -141,13 +146,17 @@ function generateUseItemOfType (typeFn) {
 
     // ----- data -----
 
-    // In any situation force access data through the object key to let observer know that the data was accessed
-    let data = $hooks.get()[hookId]
+    let data = initsCountRef.current
+      ? hasDataFn
+        ? itemRef.current && itemRef.current.getData()
+        : // In any situation force access data through the object key to let observer know that the data was accessed
+        $hooks.get()[hookId]
+      : undefined
 
     // ----- return -----
 
     return [
-      initsCountRef.current ? data : undefined,
+      data,
 
       // Query, QueryExtra: return scoped model to collection path.
       // Everything else: return the 'hooks.<randomHookId>' scoped model.
@@ -181,7 +190,7 @@ function getItemFromParams (params, key) {
   let explicitType = params && params.__subscriptionType
   let subscriptionParams = params.params
   let constructor = getItemConstructor(explicitType)
-  return new constructor($hooks, key, subscriptionParams)
+  return new constructor($root.connection, key, subscriptionParams)
 }
 
 function getItemConstructor (type) {
@@ -217,4 +226,11 @@ function useAsync (fn, inputs) {
   useLayoutEffect(() => {
     fn()
   }, inputs)
+}
+
+function useForceUpdate () {
+  const [tick, setTick] = useState(1)
+  return () => {
+    setTick(tick + 1)
+  }
 }

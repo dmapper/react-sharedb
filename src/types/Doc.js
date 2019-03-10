@@ -1,6 +1,7 @@
 import model from '@react-sharedb/model'
 import Base from './Base'
 import { observable } from '@nx-js/observer-util'
+import { increment, decrement, UNSUBSCRIBE_DELAY } from '../counter'
 
 export default class Doc extends Base {
   constructor (...args) {
@@ -15,42 +16,44 @@ export default class Doc extends Base {
     await this._subscribe()
   }
 
-  refModel () {
-    if (this.cancelled) return
-    let { key } = this
-    this.model.ref(key, this.subscription)
-  }
-
-  unrefModel () {
-    let { key } = this
-    this.model.removeRef(key)
+  getData () {
+    let { connection, collection, docId } = this
+    return connection.get(collection, docId).data
   }
 
   async _subscribe () {
-    let { collection, docId } = this
-    this.subscription = model.scope(`${collection}.${docId}`)
+    let { connection, collection, docId } = this
+    let shareDoc = connection.get(collection, docId)
+    let count = increment(collection, docId)
+    let hasAnotherSubscription = count > 1
+    this.subscribed = true
     await new Promise((resolve, reject) => {
-      model.subscribe(this.subscription, err => {
+      const onSubscribed = err => {
         if (this.cancelled) return
         if (err) return reject(err)
-        let shareDoc = model.connection.get(collection, docId)
         shareDoc.data = observable(shareDoc.data)
 
         // Listen for doc creation, intercept it and make observable
         let createFn = () => {
-          let shareDoc = model.connection.get(collection, docId)
+          let shareDoc = connection.get(collection, docId)
           shareDoc.data = observable(shareDoc.data)
         }
         // Add listener to the top of the queue, since we want
         // to modify shareDoc.data before racer gets to it
-        prependListener(shareDoc, 'create', createFn)
+        shareDoc.on('create', createFn)
         this.listeners.push({
           ee: shareDoc,
           eventName: 'create',
           fn: createFn
         })
         resolve()
-      })
+      }
+      // don't actually perform the subscription if we are already subscribed
+      if (hasAnotherSubscription) {
+        onSubscribed()
+      } else {
+        shareDoc.subscribe(onSubscribed)
+      }
     })
   }
 
@@ -65,9 +68,14 @@ export default class Doc extends Base {
   }
 
   _unsubscribe () {
-    if (!this.subscription) return
-    model.unsubscribe(this.subscription)
-    delete this.subscription
+    if (!this.subscribed) return
+    let { connection, collection, docId } = this
+    let shareDoc = connection.get(collection, docId)
+    setTimeout(() => {
+      // Unsubscribe only if there are no other active subscriptions
+      if (decrement(collection, docId)) return
+      shareDoc.unsubscribe()
+    }, UNSUBSCRIBE_DELAY)
   }
 
   destroy () {
@@ -81,18 +89,4 @@ export default class Doc extends Base {
     delete this.collection
     super.destroy()
   }
-}
-
-// Shim for EventEmitter.prependListener.
-// Right now this is required to support older build environments
-// like react-native and webpack v1.
-// TODO: Replace this with EventEmitter.prependListener in future
-function prependListener (emitter, event, listener) {
-  let old = emitter.listeners(event) || []
-  emitter.removeAllListeners(event)
-  let rv = emitter.on(event, listener)
-  for (let i = 0, len = old.length; i < len; i++) {
-    emitter.on(event, old[i])
-  }
-  return rv
 }

@@ -146,11 +146,11 @@ function generateUseItemOfType (typeFn) {
 
     // ----- data -----
 
+    // In any situation force access data through the object key to let observer know that the data was accessed
     let data = initsCountRef.current
       ? hasDataFn
         ? itemRef.current && itemRef.current.getData()
-        : // In any situation force access data through the object key to let observer know that the data was accessed
-        $hooks.get()[hookId]
+        : $hooks.get()[hookId]
       : undefined
 
     // ----- return -----

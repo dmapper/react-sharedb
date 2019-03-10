@@ -1,7 +1,9 @@
 import model from '@react-sharedb/model'
 import Base from './Base'
 import { observable } from '@nx-js/observer-util'
-import { observablePath } from '../util'
+import { observablePath, isExtraQuery } from '../util'
+import { increment, decrement, UNSUBSCRIBE_DELAY } from '../counter'
+import { getQuery, setQuery, removeQuery } from '../queriesMemo'
 
 const MAX_LISTENERS = 100
 
@@ -18,57 +20,47 @@ export default class Query extends Base {
     await this._subscribe()
   }
 
-  refModel () {
-    if (this.cancelled) return
-    let { key } = this
-    this.subscription.ref(this.model.at(key))
-    observablePath(this.model.path(key))
-    this.subscription.refIds(this.model.at(getIdsName(key)))
-  }
-
-  unrefModel () {
-    let { key } = this
-    this.model.removeRef(getIdsName(key))
-    this.model.removeRef(key)
-  }
-
-  async _subscribe () {
+  getData () {
     let { collection, query } = this
-    this.subscription = model.query(collection, query)
+    return getQuery(collection, query).getResults()
+  }
+
+  async _subscribe (isExtra) {
+    let { connection, collection, query } = this
+    let count = increment(collection, query)
+    let hasAnotherSubscription = count > 1
+    this.subscribed = true
     await new Promise((resolve, reject) => {
-      model.subscribe(this.subscription, err => {
-        if (this.cancelled) return
-        if (err) return reject(err)
-        // observe ids and extra
-        let path = `$queries.${this.subscription.hash}`
-        observablePath(path)
-
-        // observe initial docs
-        let docIds = this.subscription.getIds()
-        for (let docId of docIds) {
-          let shareDoc = model.connection.get(collection, docId)
-          shareDoc.data = observable(shareDoc.data)
+      if (hasAnotherSubscription) {
+        let queryWrapper = getQuery(collection, query)
+        if (queryWrapper.isSubscribed()) {
+          resolve()
+        } else {
+          queryWrapper.on('init', resolve)
         }
-        // Increase the listeners cap
-        this.subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
-
-        // [insert]
-        let insertFn = shareDocs => {
-          // observe new docs
-          let ids = getShareResultsIds(shareDocs)
-          ids.forEach(docId => {
-            let shareDoc = model.connection.get(collection, docId)
-            shareDoc.data = observable(shareDoc.data)
-          })
-        }
-        this.subscription.shareQuery.on('insert', insertFn)
-        this.listeners.push({
-          ee: this.subscription.shareQuery,
-          eventName: 'insert',
-          fn: insertFn
-        })
-        resolve()
-      })
+      } else {
+        let shareQuery = connection.createSubscribeQuery(
+          collection,
+          query,
+          undefined,
+          (err, results) => {
+            console.log('> GOT result')
+            // if (this.cancelled) return
+            if (err) return reject(err)
+            let queryWrapper = getQuery(collection, query)
+            if (!queryWrapper) return
+            queryWrapper.init()
+          }
+        )
+        let queryWrapper = setQuery(
+          collection,
+          query,
+          connection,
+          shareQuery,
+          isExtra
+        )
+        queryWrapper.on('init', resolve)
+      }
     })
   }
 
@@ -83,13 +75,13 @@ export default class Query extends Base {
   }
 
   _unsubscribe () {
-    if (!this.subscription) return
-    model.unsubscribe(this.subscription)
-    // setTimeout(() => {
-    //   console.log('>> unsubscribe')
-    //   model.unsubscribe(subscription)
-    // }, 3000)
-    delete this.subscription
+    if (!this.subscribed) return
+    let { collection, query } = this
+    setTimeout(() => {
+      // Unsubscribe only if there are no other active subscriptions
+      if (decrement(collection, query)) return
+      removeQuery(collection, query)
+    }, UNSUBSCRIBE_DELAY)
   }
 
   destroy () {
@@ -103,18 +95,4 @@ export default class Query extends Base {
     delete this.collection
     super.destroy()
   }
-}
-
-export function getIdsName (plural) {
-  if (/ies$/i.test(plural)) return plural.replace(/ies$/i, 'y') + 'Ids'
-  return plural.replace(/s$/i, '') + 'Ids'
-}
-
-export function getShareResultsIds (results) {
-  let ids = []
-  for (let i = 0; i < results.length; i++) {
-    let shareDoc = results[i]
-    ids.push(shareDoc.id)
-  }
-  return ids
 }

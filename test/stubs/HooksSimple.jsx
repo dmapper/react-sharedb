@@ -13,7 +13,9 @@ export default useFn => {
     })
 
     let [items] = useFn(props)
-    if (items == null) items = []
+    if (items == null) return null
+
+    console.log('>>> got items', items)
     // Handle situation when subscribing to one doc instead of query
     if (!_.isArray(items)) items = [items]
     let names = items.map(i => i.name).join(',')

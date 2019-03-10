@@ -26,7 +26,7 @@ export const useApi = generateUseItemOfType(subApi)
 
 function generateUseItemOfType (typeFn) {
   let isQuery = typeFn === subQuery
-  let hasDataFn = typeFn === subDoc
+  let hasDataFn = typeFn === subDoc || typeFn === subQuery
   let isSync = typeFn === subLocal || typeFn === subValue
   let useDymamic = isSync ? useSync : useAsync
   return (...args) => {
@@ -153,6 +153,9 @@ function generateUseItemOfType (typeFn) {
         : $hooks.get()[hookId]
       : undefined
 
+    console.log('>> hook data', data)
+    console.log('>> hook data length', Array.isArray(data) && data.length)
+
     // ----- return -----
 
     return [
@@ -164,21 +167,7 @@ function generateUseItemOfType (typeFn) {
 
       // explicit ready flag
       !!initsCountRef.current
-
-      // TODO: Maybe enable returning array of ids for Query in future.
-      //       The potential drawback is that the rendering might fire twice
-      //       when the subscribed data changes (items added or removed from query).
-      //       This needs to be tested before enabling.
-      // Return ids array as the third parameter for useQuery
-      // idsName ? res.push($hooks.get()[idsName]) : undefined
     ]
-
-    // TODO: Maybe enable returning array of ids for Query in future.
-    //       See below for more info.
-    // ----- ids -----
-    // const idsName = useMemo(() => (
-    //   hasIds(params) ? getIdsName(hookId) : undefined
-    // ), [])
   }
 }
 

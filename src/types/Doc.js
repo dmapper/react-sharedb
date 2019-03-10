@@ -28,31 +28,32 @@ export default class Doc extends Base {
     let hasAnotherSubscription = count > 1
     this.subscribed = true
     await new Promise((resolve, reject) => {
-      const onSubscribed = err => {
-        if (this.cancelled) return
-        if (err) return reject(err)
-        shareDoc.data = observable(shareDoc.data)
-
-        // Listen for doc creation, intercept it and make observable
-        let createFn = () => {
-          let shareDoc = connection.get(collection, docId)
-          shareDoc.data = observable(shareDoc.data)
-        }
-        // Add listener to the top of the queue, since we want
-        // to modify shareDoc.data before racer gets to it
-        shareDoc.on('create', createFn)
-        this.listeners.push({
-          ee: shareDoc,
-          eventName: 'create',
-          fn: createFn
-        })
-        resolve()
-      }
       // don't actually perform the subscription if we are already subscribed
       if (hasAnotherSubscription) {
-        onSubscribed()
+        // TODO: wait until actually subscribed
+        resolve()
       } else {
-        shareDoc.subscribe(onSubscribed)
+        shareDoc.subscribe(err => {
+          // if (this.cancelled) return
+          if (err) return reject(err)
+
+          shareDoc.data = observable(shareDoc.data)
+
+          // Listen for doc creation, intercept it and make observable
+          let createFn = () => {
+            let shareDoc = connection.get(collection, docId)
+            shareDoc.data = observable(shareDoc.data)
+          }
+          // Add listener to the top of the queue, since we want
+          // to modify shareDoc.data before racer gets to it
+          shareDoc.on('create', createFn)
+          this.listeners.push({
+            ee: shareDoc,
+            eventName: 'create',
+            fn: createFn
+          })
+          resolve()
+        })
       }
     })
   }
@@ -70,10 +71,10 @@ export default class Doc extends Base {
   _unsubscribe () {
     if (!this.subscribed) return
     let { connection, collection, docId } = this
-    let shareDoc = connection.get(collection, docId)
     setTimeout(() => {
       // Unsubscribe only if there are no other active subscriptions
       if (decrement(collection, docId)) return
+      let shareDoc = connection.get(collection, docId)
       shareDoc.unsubscribe()
     }, UNSUBSCRIBE_DELAY)
   }

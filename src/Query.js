@@ -77,7 +77,13 @@ export default class Query extends EventEmitter {
   }
 
   onExtra = extra => {
-    batching.batch(() => {})
+    batching.batch(() => {
+      // TODO: handle change of data to not modify the root value.
+      //       Instead it should do a setDiffDeep for arrays/objects.
+      //       It should also fire the forceUpdate if the data type
+      //       is not array/object and when the data type changes.
+      this.extra = observable(extra)
+    })
   }
 
   destroy () {

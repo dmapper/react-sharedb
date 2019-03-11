@@ -26,7 +26,7 @@ export default class Query extends EventEmitter {
   init () {
     this.ready = true
     if (this.isExtra) {
-      this.extra = observable(this.shareQuery.extra)
+      this.shareQuery.extra = observable(this.shareQuery.extra)
       this.shareQuery.on('extra', this.onExtra)
     } else {
       // observe initial docs
@@ -47,7 +47,7 @@ export default class Query extends EventEmitter {
 
   getData () {
     if (this.isExtra) {
-      return this.extra
+      return this.shareQuery.extra
     } else {
       return this.results
     }
@@ -82,7 +82,7 @@ export default class Query extends EventEmitter {
       //       Instead it should do a setDiffDeep for arrays/objects.
       //       It should also fire the forceUpdate if the data type
       //       is not array/object and when the data type changes.
-      this.extra = observable(extra)
+      this.shareQuery.extra = observable(this.shareQuery.extra)
     })
   }
 
@@ -91,7 +91,6 @@ export default class Query extends EventEmitter {
     if (this.ready) {
       if (this.isExtra) {
         this.shareQuery.removeListener('extra', this.onExtra)
-        delete this.extra
       } else {
         this.shareQuery.removeListener('insert', this.onInsert)
         this.shareQuery.removeListener('remove', this.onRemove)

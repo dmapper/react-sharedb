@@ -3,26 +3,39 @@ import batching from './batching'
 import EventEmitter from 'events'
 
 export default class DocWrapper extends EventEmitter {
-  constructor (connection, shareDoc) {
+  constructor (connection, collection, docId) {
     super()
     this.connection = connection
-    this.shareDoc = shareDoc
-    this.subscribed = undefined
+    this.collection = collection
+    this.docId = docId
+    this.ready = undefined
+    this.subscribe()
+  }
+
+  subscribe () {
+    let { connection, collection, docId } = this
+    this.shareDoc = connection.get(collection, docId)
+    this.shareDoc.subscribe()
+    this.shareDoc.on('load', this.onLoad)
+  }
+
+  onLoad = () => {
+    this.init()
   }
 
   init () {
-    this.subscribed = true
-    this.data = observable(this.shareDoc.data)
+    this.ready = true
+    this.shareDoc.data = observable(this.shareDoc.data)
     this.shareDoc.on('create', this.onCreate)
-    this.emit('init')
+    this.emit('ready')
   }
 
-  isSubscribed () {
-    return this.subscribed
+  isReady () {
+    return this.ready
   }
 
   getData () {
-    return this.data
+    return this.shareDoc.data
   }
 
   onCreate () {
@@ -32,10 +45,10 @@ export default class DocWrapper extends EventEmitter {
 
   destroy () {
     this.removeAllListeners()
-    if (this.subscribed) {
+    if (this.ready) {
       this.shareDoc.removeListener('create', this.onCreate)
-      delete this.data
     }
+    this.shareDoc.removeListener('load', this.onLoad)
     this.shareDoc.unsubscribe()
     delete this.shareDoc
     delete this.connection

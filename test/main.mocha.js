@@ -36,7 +36,7 @@ before(asyncImport)
 // Unmount component after each test
 afterEach(cleanup)
 
-describe(PREFIX + 'Helpers', () => {
+describe.only(PREFIX + 'Helpers', () => {
   it('test RPC. 1', async () => {
     await serverModel.setAsync(`users.${alias(1)}.name`, alias(1))
     let w = await initSimple(() => ({ items: subDoc('users', alias(1)) }))
@@ -56,7 +56,7 @@ describe(PREFIX + 'Helpers', () => {
   })
 })
 
-describe(PREFIX + 'Docs', () => {
+describe.only(PREFIX + 'Docs', () => {
   it('doc by id', async () => {
     let w = await initSimple(() => ({ items: subDoc('users', alias(3)) }))
     expect(w.items)
@@ -83,7 +83,7 @@ describe(PREFIX + 'Docs', () => {
   })
 })
 
-describe(PREFIX + 'Queries', () => {
+describe.only(PREFIX + 'Queries', () => {
   it('all collection', async () => {
     let w = await initSimple(() => ({ items: subQuery('users', {}) }))
     expect(w.items)

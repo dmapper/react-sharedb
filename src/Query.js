@@ -2,17 +2,33 @@ import { observable } from '@nx-js/observer-util'
 import batching from './batching'
 import EventEmitter from 'events'
 
-export default class QueryWrapper extends EventEmitter {
-  constructor (connection, shareQuery, isExtra) {
+export default class Query extends EventEmitter {
+  constructor (connection, collection, queryParams, { isExtra }) {
     super()
     this.connection = connection
-    this.shareQuery = shareQuery
+    this.collection = collection
+    this.queryParams = queryParams
     this.isExtra = isExtra
-    this.subscribed = undefined
+    this.ready = undefined
+    this.subscribe()
+  }
+
+  subscribe () {
+    let { connection, collection, queryParams } = this
+    this.shareQuery = connection.createSubscribeQuery(
+      collection,
+      queryParams,
+      undefined,
+      (err, results) => {
+        if (this.destroyed) return
+        if (err) return this.emit('error', err)
+        this.init()
+      }
+    )
   }
 
   init () {
-    this.subscribed = true
+    this.ready = true
     if (this.isExtra) {
       this.extra = observable(this.shareQuery.extra)
       this.shareQuery.on('extra', this.onExtra)
@@ -26,19 +42,19 @@ export default class QueryWrapper extends EventEmitter {
       this.shareQuery.on('remove', this.onRemove)
       this.shareQuery.on('move', this.onMove)
     }
-    this.emit('init')
+    this.emit('ready')
   }
 
-  isSubscribed () {
-    return this.subscribed
+  isReady () {
+    return this.ready
   }
 
-  getResults () {
-    return this.results
-  }
-
-  getExtra () {
-    return this.extra
+  getData () {
+    if (this.isExtra) {
+      return this.extra
+    } else {
+      return this.results
+    }
   }
 
   onInsert = (shareDocs, index) => {
@@ -70,20 +86,23 @@ export default class QueryWrapper extends EventEmitter {
 
   destroy () {
     this.removeAllListeners()
-    if (this.subscribed) {
+    if (this.ready) {
       if (this.isExtra) {
+        this.shareQuery.removeListener('extra', this.onExtra)
+        delete this.extra
+      } else {
         this.shareQuery.removeListener('insert', this.onInsert)
         this.shareQuery.removeListener('remove', this.onRemove)
         this.shareQuery.removeListener('move', this.onMove)
         delete this.results
-      } else {
-        this.shareQuery.removeListener('extra', this.onExtra)
-        delete this.extra
       }
     }
     this.shareQuery.destroy()
     delete this.shareQuery
     delete this.connection
+    delete this.collection
+    delete this.queryParams
+    this.destroyed = true
   }
 }
 

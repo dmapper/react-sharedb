@@ -15,16 +15,12 @@ export default class Query extends EventEmitter {
 
   subscribe () {
     let { connection, collection, queryParams } = this
-    this.shareQuery = connection.createSubscribeQuery(
-      collection,
-      queryParams,
-      undefined,
-      (err, results) => {
-        if (this.destroyed) return
-        if (err) return this.emit('error', err)
-        this.init()
-      }
-    )
+    this.shareQuery = connection.createSubscribeQuery(collection, queryParams)
+    this.shareQuery.on('ready', this.onReady)
+  }
+
+  onReady = () => {
+    this.init()
   }
 
   init () {
@@ -97,12 +93,12 @@ export default class Query extends EventEmitter {
         delete this.results
       }
     }
+    this.shareQuery.removeListener('ready', this.onReady)
     this.shareQuery.destroy()
     delete this.shareQuery
     delete this.connection
     delete this.collection
     delete this.queryParams
-    this.destroyed = true
   }
 }
 

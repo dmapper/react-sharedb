@@ -1,7 +1,7 @@
 // ref: https://github.com/mobxjs/mobx-react-lite/blob/master/src/observer.ts
 import { memo, useLayoutEffect, useMemo, useState } from 'react'
 import { observe, unobserve } from '@nx-js/observer-util'
-import { batching } from '../subscribe'
+import batching from '../batching'
 
 export function observer (baseComponent) {
   const baseComponentName = baseComponent.displayName || baseComponent.name

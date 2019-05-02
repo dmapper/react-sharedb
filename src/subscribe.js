@@ -9,7 +9,7 @@ import QueryExtra from './types/QueryExtra'
 import Local from './types/Local'
 import Value from './types/Value'
 import Api from './types/Api'
-import Batching from './Batching'
+import batching from './batching'
 import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
 import RacerRemoteDoc from 'racer/lib/Model/RemoteDoc'
 import SharedbDoc from 'sharedb/lib/client/doc'
@@ -30,7 +30,6 @@ const DEFAULT_COLLECTION = '$components'
 const SUBSCRIBE_COMPUTATION_NAME = '__subscribeComputation'
 const HELPER_METHODS_TO_BIND = ['get', 'at']
 const DUMMY_STATE = {}
-export const batching = new Batching()
 
 export default function subscribe (fn) {
   return function decorateTarget (Component) {
@@ -359,7 +358,7 @@ function getItemConstructorFromParams (params) {
       - subDoc(collection, docId)
       - subQuery(collection, query)
       - subLocal(localPath)
-      - subValue(value)    
+      - subValue(value)
   `)
   if (typeof params === 'string') return Local
   if (_.isArray(params)) {

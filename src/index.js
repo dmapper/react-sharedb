@@ -1,8 +1,11 @@
 import './globalInit'
-import subscribe, { batching } from './subscribe'
+import subscribe from './subscribe'
+import batching from './batching'
 export { default as model, default as $root } from '@react-sharedb/model'
-export { subscribe }
-export const batchModel = batching.batch.bind(batching)
+export { subscribe, batching }
+export const batch = batching.batch.bind(batching)
+// TODO: DEPRECATED. Add warning to use batch instead
+export const batchModel = batch
 export { default as _semaphore } from './semaphore'
 export { initLocalCollection, clone } from './util'
 export {

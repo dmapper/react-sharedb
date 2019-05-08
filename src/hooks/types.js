@@ -161,7 +161,7 @@ function generateUseItemOfType (typeFn) {
       $queryCollection || $model,
 
       // explicit ready flag
-      !!initsCountRef.current
+      initsCountRef.current
 
       // TODO: Maybe enable returning array of ids for Query in future.
       //       The potential drawback is that the rendering might fire twice

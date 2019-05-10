@@ -1,5 +1,4 @@
 import _ from 'lodash'
-import { isExtraQuery } from './util'
 
 export function subLocal (localPath) {
   if (typeof localPath !== 'string') {
@@ -25,7 +24,7 @@ export function subDoc (collection, docId) {
       [react-sharedb] subDoc(): You are trying to subscribe to an undefined document id:
         ${collection}.${docId}
       Falling back to '__NULL__' document to prevent critical crash.
-      You should prevent situations when the \`docId\` is undefined.  
+      You should prevent situations when the \`docId\` is undefined.
     `)
     invalid = true
   }
@@ -49,7 +48,7 @@ export function subQuery (collection, query) {
       [react-sharedb] subQuery(): Query is undefined. Got:
         ${collection}, ${query}
       Falling back to {_id: '__NON_EXISTENT__'} query to prevent critical crash.
-      You should prevent situations when the \`query\` is undefined.  
+      You should prevent situations when the \`query\` is undefined.
     `)
     invalid = true
   }
@@ -61,7 +60,7 @@ export function subQuery (collection, query) {
   ) {
     throw new Error(`
       [react-sharedb] subQuery(): Query is not an Object. Got:
-        ${collection}, ${query}      
+        ${collection}, ${query}
       Query must always be an Object.
     `)
   }
@@ -126,4 +125,12 @@ export function subApi (path, fn, inputs, options) {
     __subscriptionType: 'Api',
     params: [path, fn, inputs, options]
   }
+}
+
+// Duplicate of isExtraQuery from util.js
+// We have to duplicate it in order to be able to use it on server
+// since util.js depends on the client-side model
+// TODO: refactor
+function isExtraQuery (queryParams) {
+  return queryParams.$count || queryParams.$aggregate
 }

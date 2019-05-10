@@ -1,4 +1,3 @@
-import model from '@react-sharedb/model'
 import Base from './Base'
 import { observablePath } from '../util'
 
@@ -12,7 +11,7 @@ export default class Local extends Base {
     if (this.cancelled) return
     let { key } = this
     observablePath(this.path)
-    this.model.ref(key, model.scope(this.path))
+    this.model.ref(key, this.model.root.scope(this.path))
   }
 
   unrefModel () {

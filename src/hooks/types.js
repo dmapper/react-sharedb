@@ -12,7 +12,7 @@ import QueryExtra from '../types/QueryExtra'
 import Local from '../types/Local'
 import Value from '../types/Value'
 import Api from '../types/Api'
-import { batching } from '../subscribe'
+import batching from '../batching'
 import {
   subDoc,
   subLocal,
@@ -75,7 +75,7 @@ function generateUseItemOfType (typeFn) {
     }, [])
 
     const initItem = useCallback(params => {
-      let item = getItemFromParams(params, hookId)
+      let item = getItemFromParams(params, $hooks, hookId)
       destructorsRef.current.push(() => {
         item.unrefModel()
         item.destroy()
@@ -180,7 +180,7 @@ function generateUseItemOfType (typeFn) {
   }
 }
 
-function getCollectionName (params) {
+export function getCollectionName (params) {
   return params && params.params && params.params[0]
 }
 
@@ -190,11 +190,11 @@ function hasIds (params) {
   return explicitType === 'Query'
 }
 
-function getItemFromParams (params, key) {
+export function getItemFromParams (params, model, key) {
   let explicitType = params && params.__subscriptionType
   let subscriptionParams = params.params
   let constructor = getItemConstructor(explicitType)
-  return new constructor($hooks, key, subscriptionParams)
+  return new constructor(model, key, subscriptionParams)
 }
 
 function getItemConstructor (type) {

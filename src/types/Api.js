@@ -1,4 +1,3 @@
-import model from '@react-sharedb/model'
 import Base from './Base'
 import { observablePath } from '../util'
 
@@ -21,9 +20,9 @@ export default class Local extends Base {
     if (this.cancelled) return
     let { key } = this
     if (this.path) {
-      model.setDiff(this.path, this.data)
+      this.model.root.setDiff(this.path, this.data)
       observablePath(this.path)
-      this.model.ref(key, model.scope(this.path))
+      this.model.ref(key, this.model.root.scope(this.path))
     } else {
       this.model.setDiff(key, this.data)
     }
@@ -33,7 +32,7 @@ export default class Local extends Base {
     let { key } = this
     if (this.path) {
       this.model.removeRef(key)
-      model.del(this.path)
+      this.model.root.del(this.path)
     } else {
       this.model.del(key)
     }

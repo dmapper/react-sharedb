@@ -1,4 +1,3 @@
-import model from '@react-sharedb/model'
 import Base from './Base'
 import { observable } from '@nx-js/observer-util'
 
@@ -28,17 +27,17 @@ export default class Doc extends Base {
 
   async _subscribe () {
     let { collection, docId } = this
-    this.subscription = model.scope(`${collection}.${docId}`)
+    this.subscription = this.model.root.scope(`${collection}.${docId}`)
     await new Promise((resolve, reject) => {
-      model.subscribe(this.subscription, err => {
+      this.model.root.subscribe(this.subscription, err => {
         if (this.cancelled) return
         if (err) return reject(err)
-        let shareDoc = model.connection.get(collection, docId)
+        let shareDoc = this.model.root.connection.get(collection, docId)
         shareDoc.data = observable(shareDoc.data)
 
         // Listen for doc creation, intercept it and make observable
         let createFn = () => {
-          let shareDoc = model.connection.get(collection, docId)
+          let shareDoc = this.model.root.connection.get(collection, docId)
           shareDoc.data = observable(shareDoc.data)
         }
         // Add listener to the top of the queue, since we want
@@ -66,7 +65,7 @@ export default class Doc extends Base {
 
   _unsubscribe () {
     if (!this.subscription) return
-    model.unsubscribe(this.subscription)
+    this.model.root.unsubscribe(this.subscription)
     delete this.subscription
   }
 

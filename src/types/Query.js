@@ -1,4 +1,3 @@
-import model from '@react-sharedb/model'
 import Base from './Base'
 import { observable } from '@nx-js/observer-util'
 import { observablePath } from '../util'
@@ -34,9 +33,9 @@ export default class Query extends Base {
 
   async _subscribe () {
     let { collection, query } = this
-    this.subscription = model.query(collection, query)
+    this.subscription = this.model.root.query(collection, query)
     await new Promise((resolve, reject) => {
-      model.subscribe(this.subscription, err => {
+      this.model.root.subscribe(this.subscription, err => {
         if (this.cancelled) return
         if (err) return reject(err)
         // observe ids and extra
@@ -46,7 +45,7 @@ export default class Query extends Base {
         // observe initial docs
         let docIds = this.subscription.getIds()
         for (let docId of docIds) {
-          let shareDoc = model.connection.get(collection, docId)
+          let shareDoc = this.model.root.connection.get(collection, docId)
           shareDoc.data = observable(shareDoc.data)
         }
         // Increase the listeners cap
@@ -57,7 +56,7 @@ export default class Query extends Base {
           // observe new docs
           let ids = getShareResultsIds(shareDocs)
           ids.forEach(docId => {
-            let shareDoc = model.connection.get(collection, docId)
+            let shareDoc = this.model.root.connection.get(collection, docId)
             shareDoc.data = observable(shareDoc.data)
           })
         }
@@ -84,7 +83,7 @@ export default class Query extends Base {
 
   _unsubscribe () {
     if (!this.subscription) return
-    model.unsubscribe(this.subscription)
+    this.model.root.unsubscribe(this.subscription)
     // setTimeout(() => {
     //   console.log('>> unsubscribe')
     //   model.unsubscribe(subscription)

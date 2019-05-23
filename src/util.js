@@ -24,7 +24,7 @@ export function initLocalCollection (collection) {
 }
 
 export function isExtraQuery (queryParams) {
-  return queryParams.$count || queryParams.$aggregate
+  return queryParams.$count || queryParams.$aggregate || queryParams.$queryName
 }
 
 export function clone (data) {

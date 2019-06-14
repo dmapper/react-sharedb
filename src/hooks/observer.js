@@ -1,7 +1,9 @@
 // ref: https://github.com/mobxjs/mobx-react-lite/blob/master/src/observer.ts
-import { memo, useLayoutEffect, useMemo, useState } from 'react'
+import { memo, useLayoutEffect, useMemo, useState, useCallback } from 'react'
 import { observe, unobserve } from '@nx-js/observer-util'
 import batching from '../batching'
+import Debug from 'debug'
+const debug = Debug('react-sharedb:observer')
 
 export function observer (baseComponent) {
   const baseComponentName = baseComponent.displayName || baseComponent.name
@@ -18,6 +20,7 @@ export function observer (baseComponent) {
     const observedComponent = useMemo(() => {
       let update = () => {
         // TODO: Decide whether the check for unmount is needed here
+        debug('update')
         forceUpdate()
       }
       let batchedUpdate = () => batching.add(update)
@@ -40,9 +43,10 @@ export function observer (baseComponent) {
 }
 
 function useForceUpdate () {
-  const [tick, setTick] = useState(1)
+  const random = useMemo(() => Math.random(), [])
+  const [tick, setTick] = useState(random)
   return () => {
-    setTick(tick + 1)
+    setTick(Math.random())
   }
 }
 

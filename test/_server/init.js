@@ -9,6 +9,7 @@ import yaml from 'js-yaml'
 import fs from 'fs'
 import { promisifyAll } from 'bluebird'
 import initRpc from './initRpc'
+import { MongoClient } from 'mongodb'
 
 const MONGO_DB = process.env.MONGO_DB || 'test_react-sharedb'
 const MONGO_URL = 'mongodb://localhost:27017/' + MONGO_DB
@@ -21,14 +22,10 @@ let mongo, backend
 promisifyAll(Model.prototype)
 
 async function initDb () {
-  // clear database
-  return new Promise(resolve => {
-    exec(`mongo ${MONGO_DB} --eval "db.dropDatabase();"`, () => {
-      mongo = shareDbMongo(MONGO_URL, { allowAllQueries: true })
-      backend = racer.createBackend({ db: mongo })
-      resolve()
-    })
-  })
+  const db = await MongoClient.connect(MONGO_URL)
+  await db.dropDatabase()
+  mongo = shareDbMongo(MONGO_URL, { allowAllQueries: true })
+  backend = racer.createBackend({ db: mongo })
 }
 
 async function populateDbWithFixtures () {

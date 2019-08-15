@@ -40,13 +40,14 @@ export function observer (baseComponent) {
   if (baseComponent.propTypes) {
     memoComponent.propTypes = baseComponent.propTypes
   }
-  return props =>
+  const suspenseWrapper = props =>
     React.createElement(
       React.Suspense,
       { fallback: React.createElement(NullComponent, null, null) },
       React.createElement(memoComponent, props)
     )
-  // return memoComponent
+  suspenseWrapper.displayName = baseComponentName
+  return suspenseWrapper
 }
 
 function useForceUpdate () {

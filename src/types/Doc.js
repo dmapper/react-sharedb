@@ -39,7 +39,7 @@ export default class Doc extends Base {
       })
     }
 
-    return promise.then(() => {
+    function finish () {
       if (this.cancelled) return
       // TODO: if (err) return reject(err)
       let shareDoc = this.model.root.connection.get(collection, docId)
@@ -58,7 +58,13 @@ export default class Doc extends Base {
         eventName: 'create',
         fn: createFn
       })
-    })
+    }
+
+    if (promise.sync) {
+      finish()
+    } else {
+      return promise.then(finish)
+    }
   }
 
   _clearListeners () {

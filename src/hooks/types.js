@@ -101,24 +101,32 @@ function generateUseItemOfType (typeFn) {
         // and init new
         itemRef.current = item
 
-        item
-          .init(firstItem)
-          .then(() => {
-            // Handle situation when a new item already started initializing
-            // and it cancelled this (old) item
-            if (cancelInit.value) return
-            batching.batch(finishInit)
-          })
-          .catch(err => {
-            console.warn(
-              "[react-sharedb] Warning. Item couldn't initialize. " +
-                'This might be normal if several resubscriptions happened ' +
-                'quickly one after another. Error:',
-              err
-            )
-            // Ignore the .init() error
-            return Promise.resolve()
-          })
+        // It might or might NOT return the promise, depending on whether
+        // we need to wait for the new data
+        batching.batch(() => {
+          let initPromise = item.init(firstItem)
+          // Async variant
+          if (initPromise) {
+            initPromise.then(() => {
+              // Handle situation when a new item already started initializing
+              // and it cancelled this (old) item
+              if (cancelInit.value) return
+              batching.batch(finishInit)
+            }).catch(err => {
+              console.warn(
+                "[react-sharedb] Warning. Item couldn't initialize. " +
+                  'This might be normal if several resubscriptions happened ' +
+                  'quickly one after another. Error:',
+                err
+              )
+              // Ignore the .init() error
+              return Promise.resolve()
+            })
+          // Sync variant (when data is taken from cache)
+          } else {
+            finishInit()
+          }
+        })
       }
     }, [])
 

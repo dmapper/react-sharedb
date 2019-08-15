@@ -24,6 +24,9 @@ import $root from '@react-sharedb/model'
 
 const HOOKS_COLLECTION = '$hooks'
 const $hooks = $root.scope(HOOKS_COLLECTION)
+const WARNING_MESSAGE = "[react-sharedb] Warning. Item couldn't initialize. " +
+  'This might be normal if several resubscriptions happened ' +
+  'quickly one after another. Error:'
 
 export const useDoc = generateUseItemOfType(subDoc)
 export const useQuery = generateUseItemOfType(subQuery)
@@ -103,30 +106,29 @@ function generateUseItemOfType (typeFn) {
 
         // It might or might NOT return the promise, depending on whether
         // we need to wait for the new data
-        batching.batch(() => {
+        try {
           let initPromise = item.init(firstItem)
           // Async variant
           if (initPromise) {
             initPromise.then(() => {
               // Handle situation when a new item already started initializing
-              // and it cancelled this (old) item
+              // and it cancelled this (old) item.
+              // This is only possible when the current item was initializing
+              // asynchronously
               if (cancelInit.value) return
               batching.batch(finishInit)
             }).catch(err => {
-              console.warn(
-                "[react-sharedb] Warning. Item couldn't initialize. " +
-                  'This might be normal if several resubscriptions happened ' +
-                  'quickly one after another. Error:',
-                err
-              )
+              console.warn(WARNING_MESSAGE, err)
               // Ignore the .init() error
               return Promise.resolve()
             })
           // Sync variant (when data is taken from cache)
           } else {
-            finishInit()
+            batching.batch(finishInit)
           }
-        })
+        } catch (err) {
+          console.warn(WARNING_MESSAGE, err)
+        }
       }
     }, [])
 

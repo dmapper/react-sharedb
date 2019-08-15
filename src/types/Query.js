@@ -45,7 +45,7 @@ export default class Query extends Base {
       })
     }
 
-    return promise.then(() => {
+    const finish = () => {
       if (this.cancelled) return
       // TODO: if (err) return reject(err)
       // observe ids and extra
@@ -76,7 +76,13 @@ export default class Query extends Base {
         eventName: 'insert',
         fn: insertFn
       })
-    })
+    }
+
+    if (promise.sync) {
+      finish()
+    } else {
+      return promise.then(finish)
+    }
   }
 
   _clearListeners () {

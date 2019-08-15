@@ -458,3 +458,75 @@ RacerRemoteDoc.prototype._updateCollectionData = function () {
   if (this.shareDoc.data) this.shareDoc.data = observable(this.shareDoc.data)
   return oldRemoteDocUpdateCollectionData.apply(this, arguments)
 }
+
+// Monkey patch Racer for additional stuff
+
+racer.Model.prototype.fetchSync = function () {
+  var that = this;
+  return new Promise(function(resolve, reject) {
+    that._forSubscribable(arguments, 'fetch', resolve)
+  });
+};
+
+racer.Model.prototype.subscribeSync = function () {
+  var that = this;
+  return new Promise(function(resolve, reject) {
+    that._forSubscribable(arguments, 'subscribe', resolve)
+  });
+};
+
+// resolve is used for SYNC mode.
+// In this mode the subscribeSync funcion retuns a promise
+// which is gonna be either:
+//   - resolved, if we are already subscribed to all data (it's in racer model)
+//   - pending, if at least one subscription needs to be executed
+Model.prototype._forSubscribable = function(argumentsObject, method, resolve) {
+  var args, cb;
+  if (!argumentsObject.length) {
+    // Use this model's scope if no arguments
+    args = [null];
+  } else if (typeof argumentsObject[0] === 'function') {
+    // Use this model's scope if the first argument is a callback
+    args = [null];
+    cb = argumentsObject[0];
+  } else if (Array.isArray(argumentsObject[0])) {
+    // Items can be passed in as an array
+    args = argumentsObject[0];
+    cb = argumentsObject[1];
+  } else {
+    // Or as multiple arguments
+    args = Array.prototype.slice.call(argumentsObject);
+    var last = args[args.length - 1];
+    if (typeof last === 'function') cb = args.pop();
+  }
+
+  // [SYNC MODE] For sync usage of subscribe
+  if (resolve) cb = function () { resolve(); };
+
+  var group = util.asyncGroup(this.wrapCallback(cb));
+  var finished = group();
+  var docMethod = method + 'Doc';
+
+  this.root.connection.startBulk();
+  for (var i = 0; i < args.length; i++) {
+    var item = args[i];
+    if (item instanceof Query) {
+      item[method](group());
+    } else {
+      var segments = this._dereference(this._splitPath(item));
+      if (segments.length === 2) {
+        // Do the appropriate method for a single document.
+        this[docMethod](segments[0], segments[1], group());
+      } else {
+        var message = 'Cannot ' + method + ' to path: ' + segments.join('.');
+        group()(new Error(message));
+      }
+    }
+  }
+  this.root.connection.endBulk();
+
+  // [SYNC MODE] Don't force async execution if we are in sync mode
+  if (resolve) return finished();
+
+  process.nextTick(finished);
+};

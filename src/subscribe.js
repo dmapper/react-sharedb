@@ -466,14 +466,14 @@ RacerRemoteDoc.prototype._updateCollectionData = function () {
 racer.Model.prototype.fetchSync = function () {
   var resolve;
   var promise = new Promise(function(r) { resolve = r });
-  this._forSubscribable(arguments, 'fetch', resolve);
+  this._forSubscribable(arguments, 'fetch', resolve, promise);
   return promise;
 };
 
 racer.Model.prototype.subscribeSync = function () {
   var resolve;
   var promise = new Promise(function(r) { resolve = r });
-  this._forSubscribable(arguments, 'subscribe', resolve);
+  this._forSubscribable(arguments, 'subscribe', resolve, promise);
   return promise;
 };
 
@@ -482,7 +482,7 @@ racer.Model.prototype.subscribeSync = function () {
 // which is gonna be either:
 //   - resolved, if we are already subscribed to all data (it's in racer model)
 //   - pending, if at least one subscription needs to be executed
-racer.Model.prototype._forSubscribable = function(argumentsObject, method, resolve) {
+racer.Model.prototype._forSubscribable = function(argumentsObject, method, resolve, promise) {
   var args, cb;
   if (!argumentsObject.length) {
     // Use this model's scope if no arguments
@@ -503,7 +503,10 @@ racer.Model.prototype._forSubscribable = function(argumentsObject, method, resol
   }
 
   // [SYNC MODE] For sync usage of subscribe
-  if (resolve) cb = function () { resolve(); };
+  if (resolve) cb = function () {
+    promise.sync = true;
+    resolve();
+  };
 
   var group = RacerUtil.asyncGroup(this.wrapCallback(cb));
   var finished = group();

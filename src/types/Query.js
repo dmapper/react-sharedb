@@ -39,16 +39,10 @@ export default class Query extends Base {
     // if promise wasn't resolved synchronously it means that we have to wait
     // for the subscription to finish, in that case we unsubscribe from the data
     // and throw the promise out to be caught by the wrapping <Suspense>
-    if (firstItem) {
-      let isSync = false
-      promise = promise.then(() => {
-        isSync = true
+    if (firstItem && !promise.sync) {
+      throw promise.then(() => {
+        this._unsubscribe() // unsubscribe the old hook to prevent memory leaks
       })
-      if (!isSync) {
-        throw promise.then(() => {
-          this._unsubscribe() // unsubscribe the old hook to prevent memory leaks
-        })
-      }
     }
 
     return promise.then(() => {

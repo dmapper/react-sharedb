@@ -464,17 +464,17 @@ RacerRemoteDoc.prototype._updateCollectionData = function () {
 // Monkey patch Racer for additional stuff
 
 racer.Model.prototype.fetchSync = function () {
-  var that = this;
-  return new Promise(function(resolve, reject) {
-    that._forSubscribable(arguments, 'fetch', resolve)
-  });
+  var resolve;
+  var promise = new Promise(function(r) { resolve = r });
+  this._forSubscribable(arguments, 'fetch', resolve);
+  return promise;
 };
 
 racer.Model.prototype.subscribeSync = function () {
-  var that = this;
-  return new Promise(function(resolve, reject) {
-    that._forSubscribable(arguments, 'subscribe', resolve)
-  });
+  var resolve;
+  var promise = new Promise(function(r) { resolve = r });
+  this._forSubscribable(arguments, 'subscribe', resolve);
+  return promise;
 };
 
 // resolve is used for SYNC mode.

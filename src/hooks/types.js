@@ -122,7 +122,7 @@ function generateUseItemOfType (typeFn) {
       }
     }, [])
 
-    useDymamic(() => initItem(params), [hashedArgs])
+    useSync(() => initItem(params), [hashedArgs])
 
     // ----- model -----
 

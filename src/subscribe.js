@@ -480,7 +480,7 @@ racer.Model.prototype.subscribeSync = function () {
 // which is gonna be either:
 //   - resolved, if we are already subscribed to all data (it's in racer model)
 //   - pending, if at least one subscription needs to be executed
-Model.prototype._forSubscribable = function(argumentsObject, method, resolve) {
+racer.Model.prototype._forSubscribable = function(argumentsObject, method, resolve) {
   var args, cb;
   if (!argumentsObject.length) {
     // Use this model's scope if no arguments

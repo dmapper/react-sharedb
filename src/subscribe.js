@@ -12,6 +12,8 @@ import Api from './types/Api'
 import batching from './batching'
 import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
 import RacerRemoteDoc from 'racer/lib/Model/RemoteDoc'
+import RacerUtil from 'racer/lib/util'
+import RacerQuery from 'racer/lib/Model/Query'
 import SharedbDoc from 'sharedb/lib/client/doc'
 import semaphore from './semaphore'
 import { isExtraQuery } from './util'
@@ -503,14 +505,14 @@ racer.Model.prototype._forSubscribable = function(argumentsObject, method, resol
   // [SYNC MODE] For sync usage of subscribe
   if (resolve) cb = function () { resolve(); };
 
-  var group = util.asyncGroup(this.wrapCallback(cb));
+  var group = RacerUtil.asyncGroup(this.wrapCallback(cb));
   var finished = group();
   var docMethod = method + 'Doc';
 
   this.root.connection.startBulk();
   for (var i = 0; i < args.length; i++) {
     var item = args[i];
-    if (item instanceof Query) {
+    if (item instanceof RacerQuery) {
       item[method](group());
     } else {
       var segments = this._dereference(this._splitPath(item));

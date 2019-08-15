@@ -10,8 +10,8 @@ export default class Doc extends Base {
     this.listeners = []
   }
 
-  async init () {
-    await this._subscribe()
+  init (firstItem) {
+    return this._subscribe(firstItem)
   }
 
   refModel () {
@@ -25,30 +25,45 @@ export default class Doc extends Base {
     this.model.removeRef(key)
   }
 
-  async _subscribe () {
+  _subscribe (firstItem) {
     let { collection, docId } = this
     this.subscription = this.model.root.scope(`${collection}.${docId}`)
-    await new Promise((resolve, reject) => {
-      this.model.root.subscribe(this.subscription, err => {
-        if (this.cancelled) return
-        if (err) return reject(err)
+    let promise = this.model.root.subscribeSync(this.subscription)
+
+    // if promise wasn't resolved synchronously it means that we have to wait
+    // for the subscription to finish, in that case we unsubscribe from the data
+    // and throw the promise out to be caught by the wrapping <Suspense>
+    if (firstItem) {
+      let isSync = false
+      promise = promise.then(() => {
+        isSync = true
+      })
+      if (!isSync) {
+        console.log('>>>>>> THROW SUBSCRIPTION ERROR')
+        throw promise.then(() => {
+          this._unsubscribe() // unsubscribe the old hook to prevent memory leaks
+        })
+      }
+    }
+
+    return promise.then(() => {
+      if (this.cancelled) return
+      // TODO: if (err) return reject(err)
+      let shareDoc = this.model.root.connection.get(collection, docId)
+      shareDoc.data = observable(shareDoc.data)
+
+      // Listen for doc creation, intercept it and make observable
+      let createFn = () => {
         let shareDoc = this.model.root.connection.get(collection, docId)
         shareDoc.data = observable(shareDoc.data)
-
-        // Listen for doc creation, intercept it and make observable
-        let createFn = () => {
-          let shareDoc = this.model.root.connection.get(collection, docId)
-          shareDoc.data = observable(shareDoc.data)
-        }
-        // Add listener to the top of the queue, since we want
-        // to modify shareDoc.data before racer gets to it
-        prependListener(shareDoc, 'create', createFn)
-        this.listeners.push({
-          ee: shareDoc,
-          eventName: 'create',
-          fn: createFn
-        })
-        resolve()
+      }
+      // Add listener to the top of the queue, since we want
+      // to modify shareDoc.data before racer gets to it
+      prependListener(shareDoc, 'create', createFn)
+      this.listeners.push({
+        ee: shareDoc,
+        eventName: 'create',
+        fn: createFn
       })
     })
   }

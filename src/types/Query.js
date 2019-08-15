@@ -13,8 +13,8 @@ export default class Query extends Base {
     this.listeners = []
   }
 
-  async init () {
-    await this._subscribe()
+  init (firstItem) {
+    return this._subscribe(firstItem)
   }
 
   refModel () {
@@ -31,42 +31,56 @@ export default class Query extends Base {
     this.model.removeRef(key)
   }
 
-  async _subscribe () {
+  _subscribe (firstItem) {
     let { collection, query } = this
     this.subscription = this.model.root.query(collection, query)
-    await new Promise((resolve, reject) => {
-      this.model.root.subscribe(this.subscription, err => {
-        if (this.cancelled) return
-        if (err) return reject(err)
-        // observe ids and extra
-        let path = `$queries.${this.subscription.hash}`
-        observablePath(path)
+    let promise = this.model.root.subscribeSync(this.subscription)
 
-        // observe initial docs
-        let docIds = this.subscription.getIds()
-        for (let docId of docIds) {
+    // if promise wasn't resolved synchronously it means that we have to wait
+    // for the subscription to finish, in that case we unsubscribe from the data
+    // and throw the promise out to be caught by the wrapping <Suspense>
+    if (firstItem) {
+      let isSync = false
+      promise = promise.then(() => {
+        isSync = true
+      })
+      if (!isSync) {
+        throw promise.then(() => {
+          this._unsubscribe() // unsubscribe the old hook to prevent memory leaks
+        })
+      }
+    }
+
+    return promise.then(() => {
+      if (this.cancelled) return
+      // TODO: if (err) return reject(err)
+      // observe ids and extra
+      let path = `$queries.${this.subscription.hash}`
+      observablePath(path)
+
+      // observe initial docs
+      let docIds = this.subscription.getIds()
+      for (let docId of docIds) {
+        let shareDoc = this.model.root.connection.get(collection, docId)
+        shareDoc.data = observable(shareDoc.data)
+      }
+      // Increase the listeners cap
+      this.subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
+
+      // [insert]
+      let insertFn = shareDocs => {
+        // observe new docs
+        let ids = getShareResultsIds(shareDocs)
+        ids.forEach(docId => {
           let shareDoc = this.model.root.connection.get(collection, docId)
           shareDoc.data = observable(shareDoc.data)
-        }
-        // Increase the listeners cap
-        this.subscription.shareQuery.setMaxListeners(MAX_LISTENERS)
-
-        // [insert]
-        let insertFn = shareDocs => {
-          // observe new docs
-          let ids = getShareResultsIds(shareDocs)
-          ids.forEach(docId => {
-            let shareDoc = this.model.root.connection.get(collection, docId)
-            shareDoc.data = observable(shareDoc.data)
-          })
-        }
-        this.subscription.shareQuery.on('insert', insertFn)
-        this.listeners.push({
-          ee: this.subscription.shareQuery,
-          eventName: 'insert',
-          fn: insertFn
         })
-        resolve()
+      }
+      this.subscription.shareQuery.on('insert', insertFn)
+      this.listeners.push({
+        ee: this.subscription.shareQuery,
+        eventName: 'insert',
+        fn: insertFn
       })
     })
   }

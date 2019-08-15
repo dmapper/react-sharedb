@@ -20,12 +20,16 @@ export function observer (baseComponent) {
     // wrap the baseComponent into an observe decorator once.
     // This way it will track any observable changes and will trigger rerender
     const observedComponent = React.useMemo(() => {
+      let blockUpdate = { value: false }
       let update = () => {
         // TODO: Decide whether the check for unmount is needed here
-        forceUpdate()
+        // Force update unless update is blocked. It's important to block
+        // updates caused by rendering
+        // (when the sync rendening is in progress)
+        if (!blockUpdate.value) forceUpdate()
       }
       let batchedUpdate = () => batching.add(update)
-      return observe(baseComponent, {
+      return observe(wrapBaseComponent(baseComponent, blockUpdate), {
         scheduler: batchedUpdate,
         lazy: true
       })
@@ -48,6 +52,15 @@ export function observer (baseComponent) {
     )
   suspenseWrapper.displayName = baseComponentName
   return suspenseWrapper
+}
+
+function wrapBaseComponent (baseComponent, blockUpdate) {
+  return (...args) => {
+    blockUpdate.value = true
+    let res = baseComponent(...args)
+    blockUpdate.value = false
+    return res
+  }
 }
 
 function useForceUpdate () {

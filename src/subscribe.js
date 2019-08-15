@@ -535,3 +535,39 @@ racer.Model.prototype._forSubscribable = function(argumentsObject, method, resol
 
   process.nextTick(finished);
 };
+
+// Monkey patch query subscribe to return data synchronously if it's in cache
+RacerQuery.prototype.subscribe = function(cb) {
+  cb = this.model.wrapCallback(cb);
+  this.model._context.subscribeQuery(this);
+
+  if (this.subscribeCount++) {
+    var query = this;
+    // Synchronously return data if it's already in cache
+    // process.nextTick(function() {
+    var data = query.model._get(query.segments);
+    if (data) {
+      cb();
+    } else {
+      query._pendingSubscribeCallbacks.push(cb);
+    }
+    // });
+    return this;
+  }
+
+  if (!this.created) this.create();
+
+  var options = (this.options) ? RacerUtil.copy(this.options) : {};
+  options.results = this._getShareResults();
+
+  // When doing server-side rendering, we actually do a fetch the first time
+  // that subscribe is called, but keep track of the state as if subscribe
+  // were called for proper initialization in the client
+  if (this.model.root.fetchOnly) {
+    this._shareFetchedSubscribe(options, cb);
+  } else {
+    this._shareSubscribe(options, cb);
+  }
+
+  return this;
+};

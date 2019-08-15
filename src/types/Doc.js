@@ -35,7 +35,10 @@ export default class Doc extends Base {
     // and throw the promise out to be caught by the wrapping <Suspense>
     if (firstItem && !promise.sync) {
       throw promise.then(() => {
-        this._unsubscribe() // unsubscribe the old hook to prevent memory leaks
+        return new Promise(resolve => {
+          this._unsubscribe() // unsubscribe the old hook to prevent memory leaks
+          setTimeout(resolve, 0)
+        })
       })
     }
 

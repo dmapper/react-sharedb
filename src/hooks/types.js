@@ -127,6 +127,8 @@ function generateUseItemOfType (typeFn) {
             batching.batch(finishInit)
           }
         } catch (err) {
+          // rethrow if it's a Promise for <Suspend> to catch it
+          if (err.then) throw err
           console.warn(WARNING_MESSAGE, err)
         }
       }

@@ -39,7 +39,7 @@ export default class Doc extends Base {
       })
     }
 
-    function finish () {
+    const finish = () => {
       if (this.cancelled) return
       // TODO: if (err) return reject(err)
       let shareDoc = this.model.root.connection.get(collection, docId)

@@ -5,12 +5,12 @@ export default class Local extends Base {
   constructor (...args) {
     super(...args)
     let [path, fn, inputs, options] = this.params
+    this.fn = fn
     this.path = path
     if (!this.path) {
       let cacheKey = '_' + hashCode(this.fn.toString() + JSON.stringify(this.inputs))
       this.path = '_session._cache.' + cacheKey
     }
-    this.fn = fn
     this.inputs = inputs || []
     this.options = options || {}
     this.listeners = []

@@ -6,14 +6,26 @@ export default class Local extends Base {
     super(...args)
     let [path, fn, inputs, options] = this.params
     this.path = path
+    if (!this.path) {
+      let cacheKey = '_' + hashCode(this.fn.toString() + JSON.stringify(this.inputs))
+      this.path = '_session._cache.' + cacheKey
+    }
     this.fn = fn
     this.inputs = inputs || []
     this.options = options || {}
     this.listeners = []
   }
 
-  async init (firstItem) {
-    await this._fetch(firstItem)
+  init (firstItem) {
+    if (this.options.debounce && !firstItem) {
+      return new Promise(resolve => {
+        setTimeout(resolve, this.options.debounce)
+      }).then(() => {
+        if (this.cancelled) return
+        return this._fetch()
+      })
+    }
+    return this._fetch(firstItem)
   }
 
   refModel () {
@@ -38,19 +50,26 @@ export default class Local extends Base {
     }
   }
 
-  async _fetch (firstItem) {
-    if (this.options.debounce && !firstItem) {
-      await new Promise(resolve => setTimeout(resolve, this.options.debounce))
-      if (this.cancelled) return
-    }
+  _fetch (firstItem) {
     let promise = this.fn(...this.inputs)
     if (!(promise && typeof promise.then === 'function')) {
       throw new Error(`[react-sharedb] Api: fn must return promise`)
     }
-    await promise.then(data => {
+    if (this.model.get(this.path)) {
+      this.data = this.model.get(this.path)
+      return
+    }
+
+    let resPromise = promise.then(data => {
       if (this.cancelled) return
       this.data = data
+      this.model.set(this.path, data)
     })
+    if (firstItem) {
+      throw resPromise
+    } else {
+      return resPromise
+    }
   }
 
   destroy () {
@@ -62,4 +81,15 @@ export default class Local extends Base {
     delete this.data
     super.destroy()
   }
+}
+
+function hashCode (source) {
+  let hash = 0
+  if (source.length == 0) return hash
+  for (var i = 0; i < source.length; i++) {
+    let char = source.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32bit integer
+  }
+  return hash
 }

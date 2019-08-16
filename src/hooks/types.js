@@ -37,7 +37,6 @@ export const useApi = generateUseItemOfType(subApi)
 function generateUseItemOfType (typeFn) {
   let isQuery = typeFn === subQuery
   let isSync = typeFn === subLocal || typeFn === subValue
-  let useDymamic = isSync ? useSync : useAsync
   return (...args) => {
     let hookId = useMemo(() => $root.id(), [])
     let hashedArgs = useMemo(() => JSON.stringify(args), args)

@@ -7,6 +7,11 @@ class Destroyer {
     this.fns.push(fn)
   }
 
+  run () {
+    this.fns.forEach(fn => fn())
+    this.fns.length = 0
+  }
+
   getDestructor () {
     let fns = [...this.fns]
     this.fns.length = 0

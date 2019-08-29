@@ -64,14 +64,14 @@ function wrapBaseComponent (baseComponent, blockUpdate) {
       res = baseComponent(...args)
     } catch (err) {
       if (!err.then) throw err
-      let promise = err
-      let destroy = destroyer.getDestructor()
-      destroy()
-      throw promise.then(() => {
-        return new Promise(resolve => {
-          resolve()
-        })
-      })
+      // If the Promise was thrown, we catch it before Suspense does.
+      // And we run destructors for each hook previous to the one
+      // which did throw this Promise.
+      // We have to manually do it since the unmount logic is not working
+      // for components which were terminated by Suspense as a result of
+      // a promise being thrown.
+      destroyer.run()
+      throw err
     }
     blockUpdate.value = false
     return res

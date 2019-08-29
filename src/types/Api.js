@@ -60,15 +60,18 @@ export default class Local extends Base {
       return
     }
 
-    let resPromise = promise.then(data => {
-      if (this.cancelled) return
-      this.data = data
-      this.model.set(this.path, data)
-    })
     if (firstItem) {
-      throw resPromise
+      let model = this.model
+      let path = this.path
+      throw promise.then(data => {
+        model.set(path, data)
+      })
     } else {
-      return resPromise
+      return promise.then(data => {
+        if (this.cancelled) return
+        this.data = data
+        this.model.set(this.path, data)
+      })
     }
   }
 

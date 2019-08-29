@@ -85,9 +85,9 @@ export function usePage (path) {
   return useLocal('_page' + '.' + path)
 }
 
-export const ComponentIdContext = React.createContext('__NULL__')
+export const ComponentMetaContext = React.createContext({})
 
 export function useNow () {
-  let componentId = useContext(ComponentIdContext)
-  return useMemo(() => Date.now(), [componentId])
+  let { createdAt } = useContext(ComponentMetaContext)
+  return createdAt
 }

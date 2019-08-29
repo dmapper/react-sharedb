@@ -4,7 +4,7 @@ import { observe, unobserve } from '@nx-js/observer-util'
 import batching from '../batching'
 import destroyer from './destroyer'
 import $root from '@react-sharedb/model'
-import { ComponentIdContext } from './helpers'
+import { ComponentMetaContext } from './helpers'
 
 function NullComponent () {
   return null
@@ -48,10 +48,13 @@ export function observer (baseComponent) {
     memoComponent.propTypes = baseComponent.propTypes
   }
   const suspenseWrapper = props => {
-    let componentId = React.useMemo(() => $root.id(), [])
+    let componentMeta = React.useMemo(() => ({
+      componentId: $root.id(),
+      createdAt: Date.now()
+    }), [])
     return React.createElement(
-      ComponentIdContext.Provider,
-      { value: componentId },
+      ComponentMetaContext.Provider,
+      { value: componentMeta },
       React.createElement(
         React.Suspense,
         { fallback: React.createElement(NullComponent, null, null) },

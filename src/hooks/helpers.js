@@ -1,4 +1,4 @@
-import React, { useMemo, useLayoutEffect } from 'react'
+import React, { useMemo, useLayoutEffect, useContext } from 'react'
 import $root from '@react-sharedb/model'
 import { useQuery, useLocal } from './types'
 
@@ -60,7 +60,7 @@ export function useLocalDoc (collection, docId) {
       [react-sharedb] useLocalDoc(): You are trying to subscribe to an undefined document id:
         ${collection}.${docId}
       Falling back to '__NULL__' document to prevent critical crash.
-      You should prevent situations when the \`docId\` is undefined.  
+      You should prevent situations when the \`docId\` is undefined.
     `)
     docId = '__NULL__'
   }
@@ -83,4 +83,11 @@ export function usePage (path) {
     )
   }
   return useLocal('_page' + '.' + path)
+}
+
+export const ComponentIdContext = React.createContext('__NULL__')
+
+export function useNow () {
+  let componentId = useContext(ComponentIdContext)
+  return useMemo(() => Date.now(), [componentId])
 }

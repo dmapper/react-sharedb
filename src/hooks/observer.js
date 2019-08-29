@@ -3,6 +3,8 @@ import * as React from 'react'
 import { observe, unobserve } from '@nx-js/observer-util'
 import batching from '../batching'
 import destroyer from './destroyer'
+import $root from '@react-sharedb/model'
+import { ComponentIdContext } from './helpers'
 
 function NullComponent () {
   return null
@@ -45,12 +47,18 @@ export function observer (baseComponent) {
   if (baseComponent.propTypes) {
     memoComponent.propTypes = baseComponent.propTypes
   }
-  const suspenseWrapper = props =>
-    React.createElement(
-      React.Suspense,
-      { fallback: React.createElement(NullComponent, null, null) },
-      React.createElement(memoComponent, props)
+  const suspenseWrapper = props => {
+    let componentId = React.useMemo(() => $root.id(), [])
+    return React.createElement(
+      ComponentIdContext.Provider,
+      { value: componentId },
+      React.createElement(
+        React.Suspense,
+        { fallback: React.createElement(NullComponent, null, null) },
+        React.createElement(memoComponent, props)
+      )
     )
+  }
   suspenseWrapper.displayName = baseComponentName
   return suspenseWrapper
 }

@@ -23,6 +23,8 @@ export {
   useModel,
   useOn,
   useEmit,
+  ComponentIdContext,
+  useNow,
   useQueryIds,
   useLocalDoc,
   useQueryDoc,

@@ -16,6 +16,7 @@ export {
   subApi
 } from './subscriptionTypeFns'
 export { observer } from './hooks/observer'
+export { default as destroyer } from './hooks/destroyer'
 export { useDoc, useQuery, useLocal, useValue, useApi } from './hooks/types'
 export {
   emit,

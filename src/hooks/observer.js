@@ -2,6 +2,7 @@
 import * as React from 'react'
 import { observe, unobserve } from '@nx-js/observer-util'
 import batching from '../batching'
+import destroyer from './destroyer'
 
 function NullComponent () {
   return null
@@ -57,7 +58,21 @@ export function observer (baseComponent) {
 function wrapBaseComponent (baseComponent, blockUpdate) {
   return (...args) => {
     blockUpdate.value = true
-    let res = baseComponent(...args)
+    let res
+    try {
+      destroyer.reset()
+      res = baseComponent(...args)
+    } catch (err) {
+      if (!err.then) throw err
+      let promise = err
+      let destroy = destroyer.getDestructor()
+      destroy()
+      throw promise.then(() => {
+        return new Promise(resolve => {
+          resolve()
+        })
+      })
+    }
     blockUpdate.value = false
     return res
   }

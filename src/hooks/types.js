@@ -21,6 +21,7 @@ import {
   subApi
 } from '../subscriptionTypeFns'
 import $root from '@react-sharedb/model'
+import destroyer from './destroyer'
 
 const HOOKS_COLLECTION = '$hooks'
 const $hooks = $root.scope(HOOKS_COLLECTION)
@@ -46,13 +47,20 @@ function generateUseItemOfType (typeFn) {
     const itemRef = useRef()
     const destructorsRef = useRef([])
 
-    useUnmount(() => {
+    let destroy = useCallback(() => {
       if (cancelInitRef.current) cancelInitRef.current.value = true
       itemRef.current = undefined
       destructorsRef.current.forEach(destroy => destroy())
       destructorsRef.current.length = 0
       $hooks.destroy(hookId)
-    })
+    }, [])
+
+    // For normal component destruction process
+    useUnmount(destroy)
+
+    // Manual destruction handling for the case of
+    // throwing Promise out of hook
+    useSync(() => destroyer.add(destroy), [])
 
     const params = useMemo(() => typeFn(...args), [hashedArgs])
 

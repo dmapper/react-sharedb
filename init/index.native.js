@@ -4,7 +4,7 @@ import { BASE_URL } from '@env'
 import ShareDB from 'sharedb/lib/client'
 
 // isomorphic ShareDB initialization
-import commonInit from './initShareDb.common'
+import commonInit from './common'
 
 // BASE_URL must be specified, otherwise Native app doesn't know which server to connect to
 if (!BASE_URL) {

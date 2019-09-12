@@ -4977,7 +4977,7 @@ quill-delta@^4.2.1:
     extend "^3.0.2"
     fast-diff "1.2.0"
 
-racer-highway@^8.0.0:
+racer-highway@^8.1.0:
   version "8.1.0"
   resolved "https://registry.yarnpkg.com/racer-highway/-/racer-highway-8.1.0.tgz#8e4635375feea4ffbf83c476b36e4937ab2f5e55"
   integrity sha512-JQ3XiFSdBSMYk5IWr6IXeWH9w4DikO2eXyFOPQ2W0KKZ/V51bJuFtQJkAQ8zrtjkm0MVdtwf3/hLLgxRyzcJIg==

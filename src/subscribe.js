@@ -14,7 +14,7 @@ import RacerLocalDoc from 'racer/lib/Model/LocalDoc'
 import RacerRemoteDoc from 'racer/lib/Model/RemoteDoc'
 import SharedbDoc from 'sharedb/lib/client/doc'
 import semaphore from './semaphore'
-import { isExtraQuery } from './util'
+import { isExtraQuery } from './isExtraQuery'
 import {
   observe,
   unobserve,

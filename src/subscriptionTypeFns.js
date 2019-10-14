@@ -1,4 +1,5 @@
 import _ from 'lodash'
+import { isExtraQuery } from './isExtraQuery'
 
 export function subLocal (localPath) {
   if (typeof localPath !== 'string') {
@@ -125,12 +126,4 @@ export function subApi (path, fn, inputs, options) {
     __subscriptionType: 'Api',
     params: [path, fn, inputs, options]
   }
-}
-
-// Duplicate of isExtraQuery from util.js
-// We have to duplicate it in order to be able to use it on server
-// since util.js depends on the client-side model
-// TODO: refactor
-function isExtraQuery (queryParams) {
-  return queryParams.$count || queryParams.$aggregate
 }

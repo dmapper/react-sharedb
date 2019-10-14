@@ -16,7 +16,7 @@ import RacerUtil from 'racer/lib/util'
 import RacerQuery from 'racer/lib/Model/Query'
 import SharedbDoc from 'sharedb/lib/client/doc'
 import semaphore from './semaphore'
-import { isExtraQuery } from './util'
+import { isExtraQuery } from './isExtraQuery'
 import {
   observe,
   unobserve,

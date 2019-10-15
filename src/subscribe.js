@@ -293,9 +293,13 @@ const getSubscriptionsContainer = (DecoratedComponent, fns) =>
         })
       }
       if (item.init) {
-        return item
-          .init()
-          .then(finishInit)
+        const initRes = item.init()
+        // if racer has cached data item.init() returns undefined instead of promise
+        if (!initRes){
+          finishInit()
+          return Promise.resolve()
+        }
+        return initRes.then(finishInit)
           .catch(err => {
             console.warn(
               "[react-sharedb] Warning. Item couldn't initialize. " +

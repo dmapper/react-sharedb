@@ -1,3 +1,12 @@
+> **!!! IMPORTANT !!! This package is moved to a new repo. This repo is now DEPRECATED.**
+> 
+> **For the latest documentation and usage examples, refer to StartupJS framework and the `@startupjs/react-sharedb` package there:**
+>
+> - [StartupJS](https://github.com/dmapper/startupjs)
+> - [Up to date React-ShareDB](https://github.com/dmapper/startupjs/tree/master/packages/react-sharedb)
+
+> Below is the OLD documentation of the deprecated standalone `react-sharedb` package:
+
 # react-sharedb
 
 > Run `ShareDB` in `React`

@@ -2,8 +2,8 @@
 > 
 > **For the latest documentation and usage examples, refer to StartupJS framework and the `@startupjs/react-sharedb` package there:**
 >
-> - [StartupJS](https://github.com/dmapper/startupjs)
-> - [Up to date React-ShareDB](https://github.com/dmapper/startupjs/tree/master/packages/react-sharedb)
+> - [StartupJS](https://github.com/startupjs/startupjs)
+> - [Up to date React-ShareDB](https://github.com/startupjs/startupjs/tree/master/packages/react-sharedb)
 
 > Below is the OLD documentation of the deprecated standalone `react-sharedb` package:
 
